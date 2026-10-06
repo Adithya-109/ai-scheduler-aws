@@ -184,9 +184,3 @@ streamlit run app.py
 ## Academic Context
 
 Developed as part of the **Cloud Computing (CAD)** course at **Vellore Institute of Technology (VIT)**.
-
----
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
