@@ -2,7 +2,7 @@ from pipeline.feature_extractor import CodeFeatureExtractor
 from pipeline.predictor import LatencyPredictor
 
 class OffloadingScheduler:
-    def __init__(self, cloud_rtt_ms: float = 80.0):
+    def __init__(self, cloud_rtt_ms: float = None):
         self.extractor = CodeFeatureExtractor()
         self.predictor = LatencyPredictor(network_latency_cloud_ms=cloud_rtt_ms)
 
@@ -12,17 +12,18 @@ class OffloadingScheduler:
         if "error" in features:
             return {"error": features["error"]}
 
-        # 2. Predict times
+        # 2. Predict times and get routing decision
         predictions = self.predictor.predict(features)
         
-        edge_t = predictions["predicted_edge_time"]
-        cloud_t = predictions["predicted_cloud_time"]
-
-        # 3. Make the decision: Pick the smallest time!
-        decision = "EDGE" if edge_t <= cloud_t else "CLOUD"
+        # The decision now comes from the classifier (or regression fallback)
+        decision = predictions["routing_decision"]
+        confidence = predictions["confidence"]
+        method = predictions["method"]
 
         return {
             "features": features,
             "predictions": predictions,
-            "decision": decision
+            "decision": decision,
+            "confidence": confidence,
+            "decision_method": method
         }

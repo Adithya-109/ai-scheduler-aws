@@ -7,7 +7,7 @@ import pandas as pd
 from pipeline.feature_extractor import CodeFeatureExtractor
 
 # TODO: REPLACE WITH YOUR ACTUAL EC2 PUBLIC IP ADDRESS
-CLOUD_WORKER_URL = "http://18.61.160.145:8000/execute"
+CLOUD_WORKER_URL = "http://18.60.146.38:8000/execute"
 
 def run_benchmark(script_path):
     with open(script_path, 'r') as f:

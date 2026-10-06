@@ -13,7 +13,19 @@ class CodeFeatureExtractor(ast.NodeVisitor):
         self.num_comprehensions = 0
         self.max_integer = 0
 
+    def _reset(self):
+        self.num_lines = 0
+        self.loop_depth = 0
+        self._current_depth = 0
+        self.num_loops = 0
+        self.num_operations = 0
+        self.has_heavy_lib = 0
+        self.num_function_calls = 0
+        self.num_comprehensions = 0
+        self.max_integer = 0
+
     def analyze(self, code_str: str) -> dict:
+        self._reset()
         self.num_lines = len([line for line in code_str.strip().split("\n") if line.strip()])
         try:
             tree = ast.parse(code_str)

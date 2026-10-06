@@ -1,0 +1,22 @@
+{
+  "measured_rtt_seconds": 0.10967354099974036,
+  "measured_rtt_ms": 109.7,
+  "edge_device_modeling": "adaptive (2.5x base, 5.0x heavy lib)",
+  "feature_columns": [
+    "num_lines",
+    "num_loops",
+    "max_loop_depth",
+    "num_operations",
+    "has_heavy_lib",
+    "num_function_calls",
+    "num_comprehensions",
+    "max_integer",
+    "estimated_complexity"
+  ],
+  "training_samples": 591,
+  "cloud_samples": 195,
+  "edge_samples": 396,
+  "classifier_trained": true,
+  "edge_r2_mean": 0.9551,
+  "cloud_r2_mean": 0.9551
+}
