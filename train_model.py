@@ -17,7 +17,7 @@ import time
 import json
 
 # ── 0. Configuration ─────────────────────────────────────────────────────────
-CLOUD_WORKER_URL = "http://18.60.146.38:8000/execute"
+CLOUD_WORKER_URL = "http://18.60.41.230:8000/execute"
 RTT_PROBE_COUNT = 7
 MODELS_DIR = "models"
 DATA_FILE = "hardware_benchmark.csv"

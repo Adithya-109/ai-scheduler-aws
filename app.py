@@ -32,6 +32,25 @@ if 'sim_cloud_rtt' not in st.session_state:
 if 'last_result' not in st.session_state:
     st.session_state.last_result = None
 
+st.sidebar.markdown(
+    '''
+    <a href="http://localhost:8080" target="_self" style="
+        display: block;
+        margin: 20px 0;
+        padding: 10px;
+        background-color: var(--accent-amber-hover);
+        color: white;
+        text-align: center;
+        font-family: 'Press Start 2P', cursive;
+        font-size: 10px;
+        border: 4px solid var(--border-color);
+        text-decoration: none;
+        box-shadow: 4px 4px 0px var(--bg-canvas);
+    ">⬅️ EXIT TO SYSTEM OS</a>
+    ''', unsafe_allow_html=True
+)
+
+
 # Backwards compatibility migration
 if 'app_view' in st.session_state:
     if st.session_state.app_view == "dashboard":
@@ -45,28 +64,28 @@ is_dark = st.session_state.theme_mode == 'dark'
 
 if is_dark:
     theme_vars = """
-    --bg-canvas: #07080B;
-    --surface-card: rgba(17, 19, 26, 0.78);
-    --surface-hover: rgba(23, 26, 36, 0.88);
-    --surface-well: rgba(11, 13, 18, 0.82);
-    --border-color: rgba(255, 255, 255, 0.08);
-    --border-hover: rgba(245, 158, 11, 0.45);
-    --border-subtle: rgba(255, 255, 255, 0.04);
-    --text-pure: #FFFFFF;
-    --text-primary: #F1F5F9;
-    --text-muted: #8892B0;
-    --accent-amber: #F59E0B;
-    --accent-amber-hover: #D97706;
-    --accent-amber-glow: rgba(245, 158, 11, 0.25);
-    --accent-emerald: #10B981;
-    --accent-purple: #8B5CF6;
-    --accent-cyan: #06B6D4;
-    --input-bg: #0C0E14;
-    --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
-    --live-orb-1: rgba(245, 158, 11, 0.16);
-    --live-orb-2: rgba(139, 92, 246, 0.13);
-    --live-orb-3: rgba(6, 182, 212, 0.09);
-    --grid-dot-color: rgba(255, 255, 255, 0.06);
+    --bg-canvas: #0b0c10;
+    --surface-card: #1f2833;
+    --surface-hover: #2b3a4a;
+    --surface-well: #141a22;
+    --border-color: #45f3ff;
+    --border-hover: #ff003c;
+    --border-subtle: rgba(69, 243, 255, 0.2);
+    --text-pure: #ffffff;
+    --text-primary: #45f3ff;
+    --text-muted: #c5c6c7;
+    --accent-amber: #45f3ff;
+    --accent-amber-hover: #ff003c;
+    --accent-amber-glow: rgba(69, 243, 255, 0.4);
+    --accent-emerald: #00ff00;
+    --accent-purple: #ff00ff;
+    --accent-cyan: #45f3ff;
+    --input-bg: #000000;
+    --card-shadow: 8px 8px 0px rgba(69, 243, 255, 0.1);
+    --live-orb-1: rgba(69, 243, 255, 0.05);
+    --live-orb-2: rgba(255, 0, 60, 0.05);
+    --live-orb-3: rgba(0, 255, 0, 0.03);
+    --grid-dot-color: rgba(69, 243, 255, 0.1);
     """
     chart_text = "#8892B0"
     chart_grid = "rgba(255, 255, 255, 0.06)"
@@ -74,28 +93,28 @@ if is_dark:
     chart_act = "#8B5CF6"
 else:
     theme_vars = """
-    --bg-canvas: #F8FAFC;
-    --surface-card: rgba(255, 255, 255, 0.88);
-    --surface-hover: rgba(241, 245, 249, 0.95);
-    --surface-well: rgba(248, 250, 252, 0.9);
-    --border-color: rgba(0, 0, 0, 0.08);
-    --border-hover: rgba(217, 119, 6, 0.45);
-    --border-subtle: rgba(0, 0, 0, 0.04);
-    --text-pure: #0F172A;
-    --text-primary: #1E293B;
-    --text-muted: #64748B;
-    --accent-amber: #D97706;
-    --accent-amber-hover: #B45309;
-    --accent-amber-glow: rgba(217, 119, 6, 0.18);
-    --accent-emerald: #059669;
-    --accent-purple: #7C3AED;
-    --accent-cyan: #0284C7;
-    --input-bg: #FFFFFF;
-    --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-    --live-orb-1: rgba(245, 158, 11, 0.07);
-    --live-orb-2: rgba(139, 92, 246, 0.05);
-    --live-orb-3: rgba(6, 182, 212, 0.04);
-    --grid-dot-color: rgba(0, 0, 0, 0.04);
+    --bg-canvas: #e0e0e0;
+    --surface-card: #ffffff;
+    --surface-hover: #f0f0f0;
+    --surface-well: #dcdcdc;
+    --border-color: #333333;
+    --border-hover: #ff003c;
+    --border-subtle: rgba(0, 0, 0, 0.1);
+    --text-pure: #000000;
+    --text-primary: #222222;
+    --text-muted: #555555;
+    --accent-amber: #333333;
+    --accent-amber-hover: #ff003c;
+    --accent-amber-glow: rgba(0, 0, 0, 0.1);
+    --accent-emerald: #008000;
+    --accent-purple: #800080;
+    --accent-cyan: #008080;
+    --input-bg: #f9f9f9;
+    --card-shadow: 8px 8px 0px rgba(0, 0, 0, 0.2);
+    --live-orb-1: rgba(0, 0, 0, 0.05);
+    --live-orb-2: rgba(255, 0, 60, 0.05);
+    --live-orb-3: rgba(0, 255, 0, 0.03);
+    --grid-dot-color: rgba(0, 0, 0, 0.05);
     """
     chart_text = "#475569"
     chart_grid = "rgba(0, 0, 0, 0.06)"
@@ -104,7 +123,7 @@ else:
 
 custom_css = f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
 
 /* Remove default Streamlit chrome */
 [data-testid="stHeader"], [data-testid="stToolbar"], #MainMenu, footer {{
@@ -113,9 +132,9 @@ custom_css = f"""
 
 :root {{
     {theme_vars}
-    --font-heading: 'Space Grotesk', -apple-system, sans-serif;
-    --font-body: 'Inter', -apple-system, sans-serif;
-    --font-mono: 'JetBrains Mono', Consolas, monospace;
+    --font-heading: 'Press Start 2P', cursive;
+    --font-body: 'VT323', monospace;
+    --font-mono: 'VT323', monospace;
 }}
 
 html, body, .stApp {{
@@ -219,6 +238,39 @@ h1, h2, h3, h4, h5, h6 {{
     font-weight: 700 !important;
 }}
 
+
+.stButton>button {{
+    font-family: 'Press Start 2P', cursive !important;
+    border: 4px solid var(--border-color) !important;
+    border-radius: 0 !important;
+    box-shadow: 6px 6px 0px var(--bg-canvas) !important;
+    transition: all 0.1s !important;
+    text-transform: uppercase !important;
+}}
+.stButton>button:active {{
+    transform: translate(4px, 4px) !important;
+    box-shadow: 2px 2px 0px var(--bg-canvas) !important;
+}}
+.stSelectbox>div>div, .stTextInput>div>div, .stTextArea>div>div {{
+    border: 4px solid var(--border-color) !important;
+    border-radius: 0 !important;
+}}
+.stTextArea textarea {{
+    font-size: 26px !important;
+    font-family: var(--font-mono) !important;
+    line-height: 1.6 !important;
+    color: var(--text-pure) !important;
+}}
+.stButton>button p {{
+    font-size: 18px !important;
+}}
+.stMarkdown p, .stMarkdown div, .stMetric label, .stMetric div {{
+    font-size: 20px !important;
+}}
+.stSelectbox>div>div, .stTextInput>div>div {{
+    font-size: 20px !important;
+}}
+
 /* Smooth View Transitions */
 @keyframes fluidFadeIn {{
     0% {{ opacity: 0; transform: translateY(8px); }}
@@ -239,12 +291,12 @@ h1, h2, h3, h4, h5, h6 {{
 /* Refined Glassmorphism Card with Balanced Padding */
 .dev-card {{
     background: var(--surface-card);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
+    border: 4px solid var(--border-color); box-shadow: var(--card-shadow);
+    border-radius: 0px;
     padding: 1.8rem 1.6rem;
     box-shadow: var(--card-shadow);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    
+    -webkit-
     transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
     height: 100%;
 }}
@@ -279,7 +331,7 @@ h1, h2, h3, h4, h5, h6 {{
     background-size: 200% auto !important;
     color: #FFFFFF !important;
     font-weight: 700 !important;
-    border: 1px solid rgba(251, 191, 36, 0.35) !important;
+    border: 4px solid rgba(251, 191, 36, 0.35) !important;
     box-shadow: 0 3px 14px var(--accent-amber-glow), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
 }}
 .stButton>button[data-testid="baseButton-primary"]:hover {{
@@ -299,7 +351,7 @@ h1, h2, h3, h4, h5, h6 {{
 .stButton>button:not([data-testid="baseButton-primary"]) {{
     background: var(--surface-card) !important;
     color: var(--text-primary) !important;
-    border: 1px solid var(--border-color) !important;
+    border: 4px solid var(--border-color) !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
     backdrop-filter: blur(10px) !important;
 }}
@@ -323,7 +375,7 @@ h1, h2, h3, h4, h5, h6 {{
     padding: 3px 8px;
     border-radius: 4px;
     background: var(--surface-well);
-    border: 1px solid var(--border-color);
+    border: 4px solid var(--border-color); box-shadow: var(--card-shadow);
     color: var(--text-muted);
     display: inline-flex;
     align-items: center;
@@ -363,14 +415,14 @@ h1, h2, h3, h4, h5, h6 {{
 /* Decision Result Card */
 .decision-banner {{
     background: var(--surface-card);
-    border-radius: 8px;
+    border-radius: 0px;
     padding: 1.3rem 1.5rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border: 1px solid var(--border-color);
+    border: 4px solid var(--border-color); box-shadow: var(--card-shadow);
     box-shadow: var(--card-shadow);
-    backdrop-filter: blur(14px);
+    
 }}
 .decision-banner.edge-decision {{
     border-left: 4px solid var(--accent-emerald);
@@ -398,7 +450,7 @@ div[data-testid="stMetricLabel"] p {{
 .stTextArea textarea, .stTextInput input {{
     background-color: var(--input-bg) !important;
     color: var(--text-pure) !important;
-    border: 1px solid var(--border-color) !important;
+    border: 4px solid var(--border-color) !important;
     border-radius: 6px !important;
     font-family: var(--font-mono) !important;
     font-size: 0.86rem !important;
@@ -421,7 +473,7 @@ div[data-testid="stMetricLabel"] p {{
     gap: 8px !important;
     padding: 5px 12px 5px 10px !important;
     background: var(--surface-well) !important;
-    border: 1px solid var(--border-color) !important;
+    border: 4px solid var(--border-color) !important;
     border-radius: 20px !important;
     cursor: pointer !important;
 }}
@@ -444,7 +496,7 @@ div[data-testid="stMetricLabel"] p {{
     background: var(--surface-well) !important;
     padding: 4px !important;
     border-radius: 8px !important;
-    border: 1px solid var(--border-color) !important;
+    border: 4px solid var(--border-color) !important;
 }}
 .stTabs [data-baseweb="tab"] {{
     font-family: var(--font-heading) !important;
@@ -506,7 +558,7 @@ with header_brand:
     st.markdown(
         """
         <div style="display: flex; align-items: center; gap: 10px; height: 100%; padding-top: 4px;">
-            <div style="background: linear-gradient(135deg, #F59E0B, #D97706); color: #FFFFFF; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.78rem; font-family: var(--font-heading); box-shadow: 0 2px 8px rgba(245,158,11,0.25);">
+            <div style="background: linear-gradient(135deg, #F59E0B, #D97706); color: #FFFFFF; width: 28px; height: 28px; border-radius: 0px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.78rem; font-family: var(--font-heading); box-shadow: 0 2px 8px rgba(245,158,11,0.25);">
                 AS
             </div>
             <span style="font-family: var(--font-heading); font-size: 1.25rem; font-weight: 700; color: var(--text-pure); letter-spacing: -0.02em;">
@@ -521,22 +573,22 @@ with header_nav:
     n1, n2, n3, n4 = st.columns(4, gap="small")
     with n1:
         is_active = st.session_state.current_tab == "overview"
-        if st.button("Overview", use_container_width=True, type="primary" if is_active else "secondary"):
+        if st.button("Overview", use_container_width=True, width="stretch", type="primary" if is_active else "secondary"):
             st.session_state.current_tab = "overview"
             st.rerun()
     with n2:
         is_active = st.session_state.current_tab == "playground"
-        if st.button("Live Dispatch", use_container_width=True, type="primary" if is_active else "secondary"):
+        if st.button("Live Dispatch", use_container_width=True, width="stretch", type="primary" if is_active else "secondary"):
             st.session_state.current_tab = "playground"
             st.rerun()
     with n3:
         is_active = st.session_state.current_tab == "endpoints"
-        if st.button("Cluster & RTT", use_container_width=True, type="primary" if is_active else "secondary"):
+        if st.button("Cluster & RTT", use_container_width=True, width="stretch", type="primary" if is_active else "secondary"):
             st.session_state.current_tab = "endpoints"
             st.rerun()
     with n4:
         is_active = st.session_state.current_tab == "telemetry"
-        if st.button("Telemetry", use_container_width=True, type="primary" if is_active else "secondary"):
+        if st.button("Telemetry", use_container_width=True, width="stretch", type="primary" if is_active else "secondary"):
             st.session_state.current_tab = "telemetry"
             st.rerun()
 
@@ -613,14 +665,47 @@ def execute_workload(code_string, filename, local_url, cloud_url, scheduler_inst
 
     worker_data = None
     total_rtt = 0.0
-    with st.spinner(f"Executing payload on {target_name}..."):
-        req_start = time.perf_counter()
-        try:
-            response = requests.post(target_url, json={"code": code_string}, timeout=65)
-            total_rtt = time.perf_counter() - req_start
-            worker_data = response.json()
-        except Exception as ex:
-            st.error(f"Execution failed on {target_url}: {ex}")
+    st.toast(f"👾 [TRANSMITTING PAYLOAD TO {target_name}]", icon="🛰️")
+    req_start = time.perf_counter()
+    try:
+        response = requests.post(target_url, json={"code": code_string}, timeout=65)
+        total_rtt = time.perf_counter() - req_start
+        worker_data = response.json()
+        st.toast(f"✅ [EXECUTION COMPLETE ON {target_name}]", icon="🏆")
+        st.markdown("""
+        <div id="arcade-overlay" style="
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(11, 12, 16, 0.95); z-index: 999999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            animation: fadeOutArcade 3.5s forwards; pointer-events: none;
+        ">
+            <h1 style="font-family: 'Press Start 2P', cursive; font-size: 4rem; color: #45f3ff; text-shadow: 6px 6px #ff003c; text-align: center; margin-bottom: 20px; animation: glitch 0.2s linear infinite;">MISSION ACCOMPLISHED</h1>
+            <h2 style="font-family: 'VT323', monospace; font-size: 3rem; color: #00ff00; animation: blinker 0.4s linear infinite;">PAYLOAD ROUTED SUCESSFULLY</h2>
+            <style>
+            @keyframes fadeOutArcade {
+                0% { opacity: 0; transform: scale(0.8); }
+                10% { opacity: 1; transform: scale(1.1); }
+                15% { transform: scale(1); }
+                80% { opacity: 1; transform: scale(1); }
+                100% { opacity: 0; pointer-events: none; display: none; }
+            }
+            @keyframes glitch {
+                0% { transform: translate(0) }
+                20% { transform: translate(-5px, 5px) }
+                40% { transform: translate(-5px, -5px) }
+                60% { transform: translate(5px, 5px) }
+                80% { transform: translate(5px, -5px) }
+                100% { transform: translate(0) }
+            }
+            @keyframes blinker { 50% { opacity: 0; } }
+            </style>
+        </div>
+        <script>
+        setTimeout(() => { document.getElementById('arcade-overlay').style.display = 'none'; }, 3500);
+        </script>
+        """, unsafe_allow_html=True)
+    except Exception as ex:
+        st.error(f"Execution failed on {target_url}: {ex}")
 
     if worker_data:
         st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
@@ -629,7 +714,7 @@ def execute_workload(code_string, filename, local_url, cloud_url, scheduler_inst
         with col_out:
             st.markdown(
                 """
-                <div style="background: var(--surface-well); border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); display: flex; justify-content: space-between;">
+                <div style="background: var(--surface-well); border: 4px solid var(--border-color); box-shadow: var(--card-shadow); border-radius: 0px; padding: 8px 12px; margin-bottom: 8px; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); display: flex; justify-content: space-between;">
                     <span>RUNTIME EXECUTION CONSOLE</span>
                     <span style="color:#10B981;">200 OK</span>
                 </div>
@@ -703,7 +788,7 @@ def execute_workload(code_string, filename, local_url, cloud_url, scheduler_inst
                 xaxis=dict(showgrid=False, linecolor=chart_grid, tickfont=dict(size=11, color=chart_text)),
                 yaxis=dict(showgrid=True, gridcolor=chart_grid, zeroline=True, zerolinecolor=chart_grid, range=[0, max_y * 1.35], ticksuffix=" s", tickfont=dict(size=11, color=chart_text))
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, width="stretch")
 
 
 # ==============================================================================
@@ -735,11 +820,11 @@ if st.session_state.current_tab == "overview":
         
         btn_c1, btn_c2, _ = st.columns([3.5, 3.5, 3.0], gap="small")
         with btn_c1:
-            if st.button("Launch Live Dispatch →", type="primary", use_container_width=True):
+            if st.button("Launch Live Dispatch →", type="primary", use_container_width=True, width="stretch"):
                 st.session_state.current_tab = "playground"
                 st.rerun()
         with btn_c2:
-            if st.button("Cluster Topology & RTT", type="secondary", use_container_width=True):
+            if st.button("Cluster Topology & RTT", type="secondary", use_container_width=True, width="stretch"):
                 st.session_state.current_tab = "endpoints"
                 st.rerun()
 
@@ -756,7 +841,7 @@ if st.session_state.current_tab == "overview":
                 <div style="font-family: var(--font-heading); font-size: 1.25rem; font-weight: 700; color: var(--text-pure); margin-bottom: 0.8rem;">
                     Real-Time Latency Arbitration
                 </div>
-                <div style="background: var(--surface-well); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px 14px; margin-bottom: 1.2rem; font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); line-height: 1.85;">
+                <div style="background: var(--surface-well); border: 4px solid var(--border-color); box-shadow: var(--card-shadow); border-radius: 0px; padding: 12px 14px; margin-bottom: 1.2rem; font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); line-height: 1.85;">
                     <div style="display: flex; justify-content: space-between;">
                         <span>01 / Static AST Profiling</span>
                         <span style="color: var(--accent-amber);">&lt; 12ms</span>
@@ -771,14 +856,14 @@ if st.session_state.current_tab == "overview":
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1.2rem;">
-                    <div style="background: var(--surface-well); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border-color);">
+                    <div style="background: var(--surface-well); padding: 10px 12px; border-radius: 0px; border: 4px solid var(--border-color); box-shadow: var(--card-shadow);">
                         <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted);">LOCAL EDGE</div>
                         <div style="font-family: var(--font-heading); font-size: 0.98rem; font-weight: 700; color: var(--text-pure);">localhost:8000</div>
                         <div style="font-family: var(--font-mono); font-size: 0.68rem; color: #10B981;">0ms Transit Penalty</div>
                     </div>
-                    <div style="background: var(--surface-well); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border-color);">
+                    <div style="background: var(--surface-well); padding: 10px 12px; border-radius: 0px; border: 4px solid var(--border-color); box-shadow: var(--card-shadow);">
                         <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted);">AWS EC2 CLOUD</div>
-                        <div style="font-family: var(--font-heading); font-size: 0.98rem; font-weight: 700; color: var(--text-pure);">18.60.146.38</div>
+                        <div style="font-family: var(--font-heading); font-size: 0.98rem; font-weight: 700; color: var(--text-pure);">18.60.41.230</div>
                         <div style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--accent-amber);">~130ms WAN Delay</div>
                     </div>
                 </div>
@@ -912,7 +997,7 @@ if st.session_state.current_tab == "overview":
         )
     with cta_r:
         st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
-        if st.button("Open Live Dispatch →", type="primary", use_container_width=True):
+        if st.button("Open Live Dispatch →", type="primary", use_container_width=True, width="stretch"):
             st.session_state.current_tab = "playground"
             st.rerun()
 
@@ -937,7 +1022,7 @@ elif st.session_state.current_tab == "playground":
     )
 
     local_endpoint = "http://localhost:8000/execute"
-    cloud_endpoint = "http://18.60.146.38:8000/execute"
+    cloud_endpoint = "http://18.60.41.230:8000/execute"
     cloud_rtt = st.session_state.sim_cloud_rtt
     scheduler = OffloadingScheduler(cloud_rtt_ms=cloud_rtt)
 
@@ -948,19 +1033,19 @@ elif st.session_state.current_tab == "playground":
         
         pr1, pr2, pr3, pr4 = st.columns(4, gap="small")
         with pr1:
-            if st.button("Matrix Dot (Cloud)", use_container_width=True, type="primary" if st.session_state.code_preset == "heavy" else "secondary"):
+            if st.button("Matrix Dot (Cloud)", use_container_width=True, width="stretch", type="primary" if st.session_state.code_preset == "heavy" else "secondary"):
                 st.session_state.code_preset = "heavy"
                 st.rerun()
         with pr2:
-            if st.button("String Parse (Edge)", use_container_width=True, type="primary" if st.session_state.code_preset == "light" else "secondary"):
+            if st.button("String Parse (Edge)", use_container_width=True, width="stretch", type="primary" if st.session_state.code_preset == "light" else "secondary"):
                 st.session_state.code_preset = "light"
                 st.rerun()
         with pr3:
-            if st.button("Fibonacci (CPU)", use_container_width=True, type="primary" if st.session_state.code_preset == "fib" else "secondary"):
+            if st.button("Fibonacci (CPU)", use_container_width=True, width="stretch", type="primary" if st.session_state.code_preset == "fib" else "secondary"):
                 st.session_state.code_preset = "fib"
                 st.rerun()
         with pr4:
-            if st.button("Nested Loops", use_container_width=True, type="primary" if st.session_state.code_preset == "loop" else "secondary"):
+            if st.button("Nested Loops", use_container_width=True, width="stretch", type="primary" if st.session_state.code_preset == "loop" else "secondary"):
                 st.session_state.code_preset = "loop"
                 st.rerun()
 
@@ -1000,10 +1085,14 @@ print("Loop computation total:", total)"""
         user_code = st.text_area("Python Source Payload", default_code, height=210, label_visibility="collapsed")
         
         btn_run_col, _ = st.columns([3.8, 6.2])
+        clicked = False
         with btn_run_col:
             st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-            if st.button("EXECUTE & DISPATCH WORKLOAD →", type="primary", use_container_width=True):
-                execute_workload(user_code, "Manual Input", local_endpoint, cloud_endpoint, scheduler)
+            if st.button("EXECUTE & DISPATCH WORKLOAD →", type="primary", use_container_width=True, width="stretch"):
+                clicked = True
+                
+        if clicked:
+            execute_workload(user_code, "Manual Input", local_endpoint, cloud_endpoint, scheduler)
 
     with tab_batch:
         st.markdown("<br>", unsafe_allow_html=True)
@@ -1073,7 +1162,7 @@ elif st.session_state.current_tab == "endpoints":
             unsafe_allow_html=True
         )
         st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-        if st.button("Ping Local Edge Worker", use_container_width=True):
+        if st.button("Ping Local Edge Worker", use_container_width=True, width="stretch"):
             try:
                 t0 = time.perf_counter()
                 r = requests.post("http://localhost:8000/execute", json={"code": "pass"}, timeout=3)
@@ -1091,11 +1180,11 @@ elif st.session_state.current_tab == "endpoints":
                         AWS EC2 Cloud Node
                     </span>
                     <span class="tech-chip" style="color: #10B981; border-color: rgba(16,185,129,0.3);">
-                        <span class="pulse-dot"></span> 18.60.146.38
+                        <span class="pulse-dot"></span> 18.60.41.230
                     </span>
                 </div>
                 <div style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-muted); line-height: 1.85; margin-bottom: 1.2rem;">
-                    <b>URL:</b> http://18.60.146.38:8000/execute<br>
+                    <b>URL:</b> http://18.60.41.230:8000/execute<br>
                     <b>Hardware:</b> AWS EC2 Cloud Instance<br>
                     <b>Network Transit:</b> ~130ms - 155ms (WAN latency)<br>
                     <b>Optimal For:</b> High-dimensional matrices, parallel PyTorch/NumPy
@@ -1105,10 +1194,10 @@ elif st.session_state.current_tab == "endpoints":
             unsafe_allow_html=True
         )
         st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-        if st.button("Ping AWS EC2 Node", use_container_width=True):
+        if st.button("Ping AWS EC2 Node", use_container_width=True, width="stretch"):
             try:
                 t0 = time.perf_counter()
-                r = requests.post("http://18.60.146.38:8000/execute", json={"code": "pass"}, timeout=5)
+                r = requests.post("http://18.60.41.230:8000/execute", json={"code": "pass"}, timeout=5)
                 ms = (time.perf_counter() - t0) * 1000
                 st.success(f"AWS EC2 responded in {ms:.1f}ms (HTTP {r.status_code})")
             except Exception as e:
@@ -1207,7 +1296,7 @@ elif st.session_state.current_tab == "telemetry":
             xaxis=dict(title="Computational Load / Matrix Dimension", showgrid=True, gridcolor=chart_grid),
             yaxis=dict(title="Execution Time (seconds)", showgrid=True, gridcolor=chart_grid)
         )
-        st.plotly_chart(curve_fig, use_container_width=True)
+        st.plotly_chart(curve_fig, use_container_width=True, width="stretch")
 
     with chart_c2:
         st.markdown(
@@ -1230,7 +1319,7 @@ elif st.session_state.current_tab == "telemetry":
             font=dict(color=chart_text, family="Space Grotesk, sans-serif"),
             legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5)
         )
-        st.plotly_chart(pie_fig, use_container_width=True)
+        st.plotly_chart(pie_fig, use_container_width=True, width="stretch")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1245,7 +1334,7 @@ st.markdown(
         </div>
         <div style="display: flex; gap: 20px; align-items: center;">
             <span>Edge: localhost:8000</span>
-            <span>Cloud: 18.60.146.38:8000</span>
+            <span>Cloud: 18.60.41.230:8000</span>
             <span style="color: #10B981; display: inline-flex; align-items: center; gap: 5px;">
                 <span class="pulse-dot"></span> Online
             </span>
