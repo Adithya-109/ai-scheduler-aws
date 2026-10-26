@@ -1,7 +1,6 @@
 {
-  "measured_rtt_seconds": 0.10967354099974036,
-  "measured_rtt_ms": 109.7,
-  "edge_device_modeling": "adaptive (2.5x base, 5.0x heavy lib)",
+  "model_type": "HistGradientBoostingRegressor (log10 seconds)",
+  "feature_version": 2,
   "feature_columns": [
     "num_lines",
     "num_loops",
@@ -10,13 +9,69 @@
     "has_heavy_lib",
     "num_function_calls",
     "num_comprehensions",
-    "max_integer",
+    "has_recursion",
+    "time_bound_s",
+    "log_python_ops",
+    "log_numpy_elems",
+    "log_blas_flops",
     "estimated_complexity"
   ],
-  "training_samples": 591,
-  "cloud_samples": 195,
-  "edge_samples": 396,
-  "classifier_trained": true,
-  "edge_r2_mean": 0.9551,
-  "cloud_r2_mean": 0.9551
+  "measured_rtt_seconds": 0.10967354099974036,
+  "measured_rtt_ms": 109.7,
+  "rtt_source": "previous_metadata",
+  "sigma_edge_log10": 0.14963608873331835,
+  "sigma_cloud_log10": 0.21960383980105708,
+  "training_samples": 495,
+  "logged_samples": {
+    "edge": 0,
+    "cloud": 0
+  },
+  "families": [
+    "comp",
+    "dict",
+    "fib",
+    "heavy",
+    "loop",
+    "mixed",
+    "nested",
+    "numpy_matmul",
+    "numpy_ops",
+    "script0",
+    "script1",
+    "script2",
+    "script3",
+    "script4",
+    "script5",
+    "script6",
+    "script7",
+    "sort",
+    "string",
+    "triple"
+  ],
+  "data_sha256": "a4389fb64e232f28d732cdd60c2362195e0cba9a8643a38bf85e78ceca02ff91",
+  "trained_at": "2026-10-26T03:31:58Z",
+  "versions": {
+    "scikit-learn": "1.9.1",
+    "numpy": "2.5.3",
+    "python": "3.13.17"
+  },
+  "cv": {
+    "scheme": "GroupKFold(5) by script family, out-of-fold",
+    "edge_r2_log_grouped": 0.9105359147554175,
+    "cloud_r2_log_grouped": 0.8892506811541372,
+    "edge_median_abs_pct_error": 0.1527922149721677,
+    "cloud_median_abs_pct_error": 0.028626566876548326,
+    "sigma_edge_log10": 0.14963608873331835,
+    "sigma_cloud_log10": 0.21960383980105708,
+    "policy_total_seconds": {
+      "oracle": 105.93340784653425,
+      "always_edge": 105.97659926349297,
+      "always_cloud": 182.9211027948715,
+      "scheduler": 109.27657897024154
+    },
+    "scheduler_vs_always_edge_pct": 3.1138758270056632,
+    "scheduler_regret_vs_oracle_pct": 3.155917657770946,
+    "routed_to_cloud": 2,
+    "measured_cloud_wins": 1
+  }
 }

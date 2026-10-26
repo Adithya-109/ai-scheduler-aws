@@ -1,9 +1,14 @@
-streamlit>=1.30.0
-fastapi>=0.100.0
-uvicorn>=0.23.0
-requests>=2.31.0
-pydantic>=2.0.0
-plotly>=5.15.0
-numpy
-joblib
-scikit-learn
+# Versions marked == are the ones the committed models/*.pkl and the test suite
+# were produced with (scikit-learn pickles are NOT portable across versions:
+# the predictor warns and the test suite fails if they drift).
+# fastapi / streamlit / plotly are ranges because they are UI/transport only.
+scikit-learn==1.9.1
+numpy==2.5.3
+pandas==3.0.5
+joblib==1.6.0
+requests==2.34.2
+pydantic==2.13.5
+uvicorn==0.54.0
+fastapi>=0.100,<1
+streamlit>=1.30,<2
+plotly>=5.15,<7

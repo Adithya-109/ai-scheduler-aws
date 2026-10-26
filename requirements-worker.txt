@@ -1,0 +1,5 @@
+# Minimal set for the worker container. Add the libraries your jobs import.
+fastapi>=0.100,<1
+uvicorn==0.54.0
+pydantic==2.13.5
+numpy==2.5.3

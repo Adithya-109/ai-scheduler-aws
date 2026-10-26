@@ -1,3 +1,5 @@
+> **Note (2026-10):** the figures in this draft (99.4% accuracy, R² 0.972, "Random Forest", 503 scripts) come from the v1 pipeline and do not reproduce. The measured results, the corrected method and the evaluation are in `bench/RESULTS.md` and the README. Regenerate this paper before submitting it.
+
 
 # Intelligent Cloud-Edge Workload Orchestration via Static Abstract Syntax Tree Complexity Profiling and Real-Time Network Delay Harmonization
 

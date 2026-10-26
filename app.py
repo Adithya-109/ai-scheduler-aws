@@ -10,7 +10,30 @@ for mod_name in ['pipeline.feature_extractor', 'pipeline.predictor', 'pipeline.s
     if mod_name in sys.modules:
         importlib.reload(sys.modules[mod_name])
 
+import config
+from pipeline import reporting
 from pipeline.scheduler import OffloadingScheduler
+
+
+@st.cache_resource
+def get_scheduler(rtt_ms):
+    # Loading the models costs ~100 ms; do it once per RTT setting, not per rerun.
+    return OffloadingScheduler(cloud_rtt_ms=rtt_ms)
+
+
+@st.cache_data(show_spinner=False)
+def get_summary():
+    return reporting.summary()
+
+
+@st.cache_data(show_spinner=False)
+def get_curve(rtt_ms):
+    return reporting.crossover_curve(rtt_ms)
+
+
+STAT = get_summary()
+SCHED_VS_EDGE = reporting.fmt_pct(STAT['sched_vs_edge_pct'])
+CLOUD_HOST = config.CLOUD_WORKER_URL.split("//")[-1].split("/")[0] if config.CLOUD_WORKER_URL else "not configured"
 
 # 1. Page Configuration (Zero emojis, clean architectural metadata)
 st.set_page_config(
@@ -28,7 +51,7 @@ if 'theme_mode' not in st.session_state:
 if 'code_preset' not in st.session_state:
     st.session_state.code_preset = "heavy"
 if 'sim_cloud_rtt' not in st.session_state:
-    st.session_state.sim_cloud_rtt = 130
+    st.session_state.sim_cloud_rtt = int(STAT['rtt_ms'])
 if 'last_result' not in st.session_state:
     st.session_state.last_result = None
 
@@ -629,6 +652,10 @@ def execute_workload(code_string, filename, local_url, cloud_url, scheduler_inst
     target_name = "Local Edge Worker" if decision == "EDGE" else "AWS EC2 Cloud Node"
     target_url = local_url if decision == "EDGE" else cloud_url
     is_edge = decision == "EDGE"
+    if not is_edge and not cloud_url:
+        st.warning("Scheduler chose the cloud, but CLOUD_WORKER_URL is not set (see .env.example). "
+                   "Running on the local edge worker instead.")
+        target_name, target_url, is_edge = "Local Edge Worker", local_url, True
 
     st.markdown("<br>", unsafe_allow_html=True)
     
@@ -668,8 +695,11 @@ def execute_workload(code_string, filename, local_url, cloud_url, scheduler_inst
     st.toast(f"👾 [TRANSMITTING PAYLOAD TO {target_name}]", icon="🛰️")
     req_start = time.perf_counter()
     try:
-        response = requests.post(target_url, json={"code": code_string}, timeout=65)
+        response = requests.post(target_url, json={"code": code_string},
+                                 headers=config.auth_headers(), timeout=65)
         total_rtt = time.perf_counter() - req_start
+        if response.status_code != 200:
+            raise RuntimeError(f"HTTP {response.status_code}: {response.text[:200]}")
         worker_data = response.json()
         st.toast(f"✅ [EXECUTION COMPLETE ON {target_name}]", icon="🏆")
         st.markdown("""
@@ -830,7 +860,7 @@ if st.session_state.current_tab == "overview":
 
     with hero_r:
         st.markdown(
-            """
+            f"""
             <div class="dev-card" style="padding: 1.8rem 1.6rem; border-color: var(--border-hover);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem;">
                     <span class="tech-chip" style="color: var(--accent-amber);">SYSTEM TOPOLOGY</span>
@@ -844,15 +874,15 @@ if st.session_state.current_tab == "overview":
                 <div style="background: var(--surface-well); border: 4px solid var(--border-color); box-shadow: var(--card-shadow); border-radius: 0px; padding: 12px 14px; margin-bottom: 1.2rem; font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); line-height: 1.85;">
                     <div style="display: flex; justify-content: space-between;">
                         <span>01 / Static AST Profiling</span>
-                        <span style="color: var(--accent-amber);">&lt; 12ms</span>
+                        <span style="color: var(--accent-amber);">{STAT['extract_ms']:.2f}ms</span>
                     </div>
                     <div style="display: flex; justify-content: space-between;">
                         <span>02 / ML Routing Decision</span>
-                        <span style="color: #10B981;">99.4% Accuracy</span>
+                        <span style="color: #10B981;">{SCHED_VS_EDGE} vs edge-only</span>
                     </div>
                     <div style="display: flex; justify-content: space-between;">
                         <span>03 / WAN Delay Modeling</span>
-                        <span style="color: var(--text-pure);">~130ms RTT</span>
+                        <span style="color: var(--text-pure);">{STAT['rtt_ms']:.0f}ms RTT</span>
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1.2rem;">
@@ -863,8 +893,8 @@ if st.session_state.current_tab == "overview":
                     </div>
                     <div style="background: var(--surface-well); padding: 10px 12px; border-radius: 0px; border: 4px solid var(--border-color); box-shadow: var(--card-shadow);">
                         <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted);">AWS EC2 CLOUD</div>
-                        <div style="font-family: var(--font-heading); font-size: 0.98rem; font-weight: 700; color: var(--text-pure);">18.60.41.230</div>
-                        <div style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--accent-amber);">~130ms WAN Delay</div>
+                        <div style="font-family: var(--font-heading); font-size: 0.98rem; font-weight: 700; color: var(--text-pure);">{CLOUD_HOST}</div>
+                        <div style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--accent-amber);">{STAT['rtt_ms']:.0f}ms WAN Delay</div>
                     </div>
                 </div>
                 <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); border-top: 1px solid var(--border-color); padding-top: 10px; display: flex; justify-content: space-between;">
@@ -881,21 +911,21 @@ if st.session_state.current_tab == "overview":
     m1, m2, m3, m4 = st.columns(4, gap="medium")
     with m1:
         st.markdown(
-            """
+            f"""
             <div class="dev-card" style="padding: 1.3rem 1.2rem; border-top: 2px solid var(--accent-amber);">
-                <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">DECISION ACCURACY</div>
-                <div style="font-family: var(--font-heading); font-size: 2.1rem; font-weight: 700; color: var(--text-pure); margin: 3px 0;">99.4%</div>
-                <div style="font-family: var(--font-mono); font-size: 0.72rem; color: #10B981;">Dual-Engine ML Model</div>
+                <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">TOTAL TIME VS EDGE-ONLY</div>
+                <div style="font-family: var(--font-heading); font-size: 2.1rem; font-weight: 700; color: var(--text-pure); margin: 3px 0;">{SCHED_VS_EDGE}</div>
+                <div style="font-family: var(--font-mono); font-size: 0.72rem; color: #10B981;">Held-out script families</div>
             </div>
             """,
             unsafe_allow_html=True
         )
     with m2:
         st.markdown(
-            """
+            f"""
             <div class="dev-card" style="padding: 1.3rem 1.2rem; border-top: 2px solid var(--accent-emerald);">
                 <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">PROFILING LATENCY</div>
-                <div style="font-family: var(--font-heading); font-size: 2.1rem; font-weight: 700; color: var(--text-pure); margin: 3px 0;">&lt; 12ms</div>
+                <div style="font-family: var(--font-heading); font-size: 2.1rem; font-weight: 700; color: var(--text-pure); margin: 3px 0;">{STAT['extract_ms']:.2f}ms</div>
                 <div style="font-family: var(--font-mono); font-size: 0.72rem; color: #10B981;">Zero Execution Risk</div>
             </div>
             """,
@@ -903,10 +933,10 @@ if st.session_state.current_tab == "overview":
         )
     with m3:
         st.markdown(
-            """
+            f"""
             <div class="dev-card" style="padding: 1.3rem 1.2rem; border-top: 2px solid var(--accent-purple);">
                 <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">EVALUATED WORKLOADS</div>
-                <div style="font-family: var(--font-heading); font-size: 2.1rem; font-weight: 700; color: var(--text-pure); margin: 3px 0;">503</div>
+                <div style="font-family: var(--font-heading); font-size: 2.1rem; font-weight: 700; color: var(--text-pure); margin: 3px 0;">{STAT['scripts']}</div>
                 <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">Diverse AST Scripts</div>
             </div>
             """,
@@ -914,11 +944,11 @@ if st.session_state.current_tab == "overview":
         )
     with m4:
         st.markdown(
-            """
+            f"""
             <div class="dev-card" style="padding: 1.3rem 1.2rem; border-top: 2px solid var(--accent-cyan);">
                 <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">REGRESSION FIT</div>
-                <div style="font-family: var(--font-heading); font-size: 2.1rem; font-weight: 700; color: var(--text-pure); margin: 3px 0;">0.972</div>
-                <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">R² Latency Model</div>
+                <div style="font-family: var(--font-heading); font-size: 2.1rem; font-weight: 700; color: var(--text-pure); margin: 3px 0;">{STAT['cloud_r2']:.2f}</div>
+                <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">Cloud latency R², held-out</div>
             </div>
             """,
             unsafe_allow_html=True
@@ -975,7 +1005,7 @@ if st.session_state.current_tab == "overview":
                     Dual-Engine Inference
                 </div>
                 <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.65; margin: 0;">
-                    Random Forest classification paired with Gradient Boosting regression yields 99.4% accurate decisions with sub-millisecond inference latency.
+                    Two gradient-boosted regressors predict edge and cloud time. The scheduler offloads only when predicted cloud compute plus network RTT beats the edge.
                 </p>
             </div>
             """,
@@ -1021,10 +1051,10 @@ elif st.session_state.current_tab == "playground":
         unsafe_allow_html=True
     )
 
-    local_endpoint = "http://localhost:8000/execute"
-    cloud_endpoint = "http://18.60.41.230:8000/execute"
+    local_endpoint = config.execute_url(config.LOCAL_WORKER_URL)
+    cloud_endpoint = config.execute_url(config.CLOUD_WORKER_URL)
     cloud_rtt = st.session_state.sim_cloud_rtt
-    scheduler = OffloadingScheduler(cloud_rtt_ms=cloud_rtt)
+    scheduler = get_scheduler(cloud_rtt)
 
     tab_manual, tab_batch = st.tabs(["Single Code Dispatch", "Multi-File Batch Evaluation"])
 
@@ -1141,7 +1171,7 @@ elif st.session_state.current_tab == "endpoints":
     ep_col1, ep_col2 = st.columns(2, gap="large")
     with ep_col1:
         st.markdown(
-            """
+            f"""
             <div class="dev-card">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                     <span style="font-family: var(--font-heading); font-size: 1.25rem; font-weight: 700; color: var(--text-pure);">
@@ -1152,7 +1182,7 @@ elif st.session_state.current_tab == "endpoints":
                     </span>
                 </div>
                 <div style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-muted); line-height: 1.85; margin-bottom: 1.2rem;">
-                    <b>URL:</b> http://localhost:8000/execute<br>
+                    <b>URL:</b> {config.execute_url(config.LOCAL_WORKER_URL)}<br>
                     <b>Hardware:</b> Local Host Worker Process<br>
                     <b>Network Transit:</b> 0ms (Local Loopback)<br>
                     <b>Optimal For:</b> Lightweight scripts, string heuristics, fast transforms
@@ -1165,7 +1195,7 @@ elif st.session_state.current_tab == "endpoints":
         if st.button("Ping Local Edge Worker", use_container_width=True, width="stretch"):
             try:
                 t0 = time.perf_counter()
-                r = requests.post("http://localhost:8000/execute", json={"code": "pass"}, timeout=3)
+                r = requests.get(config.health_url(config.LOCAL_WORKER_URL), timeout=3)
                 ms = (time.perf_counter() - t0) * 1000
                 st.success(f"Local Edge responded in {ms:.1f}ms (HTTP {r.status_code})")
             except Exception as e:
@@ -1173,20 +1203,20 @@ elif st.session_state.current_tab == "endpoints":
 
     with ep_col2:
         st.markdown(
-            """
+            f"""
             <div class="dev-card">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                     <span style="font-family: var(--font-heading); font-size: 1.25rem; font-weight: 700; color: var(--text-pure);">
                         AWS EC2 Cloud Node
                     </span>
                     <span class="tech-chip" style="color: #10B981; border-color: rgba(16,185,129,0.3);">
-                        <span class="pulse-dot"></span> 18.60.41.230
+                        <span class="pulse-dot"></span> {CLOUD_HOST}
                     </span>
                 </div>
                 <div style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-muted); line-height: 1.85; margin-bottom: 1.2rem;">
-                    <b>URL:</b> http://18.60.41.230:8000/execute<br>
+                    <b>URL:</b> {config.execute_url(config.CLOUD_WORKER_URL) or "not configured"}<br>
                     <b>Hardware:</b> AWS EC2 Cloud Instance<br>
-                    <b>Network Transit:</b> ~130ms - 155ms (WAN latency)<br>
+                    <b>Network Transit:</b> {STAT['rtt_ms']:.0f}ms (measured at training time)<br>
                     <b>Optimal For:</b> High-dimensional matrices, parallel PyTorch/NumPy
                 </div>
             </div>
@@ -1195,13 +1225,16 @@ elif st.session_state.current_tab == "endpoints":
         )
         st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
         if st.button("Ping AWS EC2 Node", use_container_width=True, width="stretch"):
-            try:
-                t0 = time.perf_counter()
-                r = requests.post("http://18.60.41.230:8000/execute", json={"code": "pass"}, timeout=5)
-                ms = (time.perf_counter() - t0) * 1000
-                st.success(f"AWS EC2 responded in {ms:.1f}ms (HTTP {r.status_code})")
-            except Exception as e:
-                st.error(f"AWS EC2 connection failed: {e}")
+            if not config.CLOUD_WORKER_URL:
+                st.warning("CLOUD_WORKER_URL is not set (see .env.example).")
+            else:
+                try:
+                    t0 = time.perf_counter()
+                    r = requests.get(config.health_url(config.CLOUD_WORKER_URL), timeout=5)
+                    ms = (time.perf_counter() - t0) * 1000
+                    st.success(f"AWS EC2 responded in {ms:.1f}ms (HTTP {r.status_code})")
+                except Exception as e:
+                    st.error(f"AWS EC2 connection failed: {e}")
 
     st.markdown("<div style='margin: 3.2rem 0 2rem 0; border-top: 1px solid var(--border-color);'></div>", unsafe_allow_html=True)
     
@@ -1238,11 +1271,11 @@ elif st.session_state.current_tab == "telemetry":
     st.markdown("<div class='fluid-view'>", unsafe_allow_html=True)
     
     st.markdown(
-        """
+        f"""
         <div style="margin-bottom: 1.8rem;">
             <div class="tech-chip" style="color: var(--accent-amber); margin-bottom: 6px;">EMPIRICAL VALIDATION</div>
             <h2 style="font-size: 2.1rem; color: var(--text-pure);">Model Benchmarks & Decision Telemetry</h2>
-            <p style="color: var(--text-muted); font-size: 0.95rem;">Empirical validation metrics across 503 test scripts comparing Random Forest Classification with Latency Regression.</p>
+            <p style="color: var(--text-muted); font-size: 0.95rem;">Measured on {STAT['scripts']} real edge/cloud timings. Accuracy is judged by total wall-clock time against always-edge, always-cloud and the oracle, with whole script families held out.</p>
         </div>
         """,
         unsafe_allow_html=True
@@ -1250,13 +1283,13 @@ elif st.session_state.current_tab == "telemetry":
 
     k1, k2, k3, k4 = st.columns(4, gap="medium")
     with k1:
-        st.metric(label="Decision Accuracy", value="99.4%", delta="+24.2% RF Model")
+        st.metric(label="Scheduler vs always-edge", value=SCHED_VS_EDGE, delta="total time, held-out", delta_color="off")
     with k2:
-        st.metric(label="Regression Latency R²", value="0.972", delta="Trained Fit")
+        st.metric(label="Latency R² (edge / cloud)", value=f"{STAT['edge_r2']:.2f} / {STAT['cloud_r2']:.2f}", delta="held-out families", delta_color="off")
     with k3:
-        st.metric(label="Evaluated Scripts", value="503", delta="Diverse AST")
+        st.metric(label="Measured cloud wins", value=f"{STAT['cloud_wins']} / {STAT['scripts']}", delta="compute + RTT < edge", delta_color="off")
     with k4:
-        st.metric(label="AST Extraction Overhead", value="< 12ms", delta="Real-Time")
+        st.metric(label="AST extraction (median)", value=f"{STAT['extract_ms']:.2f} ms", delta="measured now", delta_color="off")
 
     st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
     
@@ -1265,14 +1298,13 @@ elif st.session_state.current_tab == "telemetry":
         st.markdown(
             """
             <div style="font-family: var(--font-heading); font-size: 1.1rem; font-weight: 700; color: var(--text-pure); margin-bottom: 0.6rem;">
-                Latency Crossover Differential: Edge vs Cloud + RTT
+                Measured Latency: Edge vs Cloud + RTT
             </div>
             """,
             unsafe_allow_html=True
         )
-        x_complexity = [100, 300, 600, 1000, 1500, 2000, 2500, 3000]
-        y_edge = [0.005, 0.02, 0.08, 0.25, 0.65, 1.45, 2.80, 4.80]
-        y_cloud_net = [0.155, 0.165, 0.20, 0.32, 0.55, 0.95, 1.60, 2.50]
+        curve = get_curve(st.session_state.sim_cloud_rtt)
+        x_complexity, y_edge, y_cloud_net = curve["x"], curve["edge"], curve["cloud_plus_rtt"]
 
         curve_fig = go.Figure()
         curve_fig.add_trace(go.Scatter(
@@ -1283,7 +1315,7 @@ elif st.session_state.current_tab == "telemetry":
         ))
         curve_fig.add_trace(go.Scatter(
             x=x_complexity, y=y_cloud_net,
-            mode='lines+markers', name='AWS Cloud + 130ms RTT',
+            mode='lines+markers', name=f"AWS Cloud + {st.session_state.sim_cloud_rtt}ms RTT",
             line=dict(color=chart_pred, width=3, dash='dot'),
             marker=dict(size=7)
         ))
@@ -1293,7 +1325,7 @@ elif st.session_state.current_tab == "telemetry":
             height=300, margin=dict(l=15, r=15, t=30, b=25),
             font=dict(color=chart_text, family="Space Grotesk, sans-serif"),
             legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="left", x=0),
-            xaxis=dict(title="Computational Load / Matrix Dimension", showgrid=True, gridcolor=chart_grid),
+            xaxis=dict(title="Estimated complexity (log10 ops), median per bin", showgrid=True, gridcolor=chart_grid),
             yaxis=dict(title="Execution Time (seconds)", showgrid=True, gridcolor=chart_grid)
         )
         st.plotly_chart(curve_fig, use_container_width=True, width="stretch")
@@ -1302,14 +1334,14 @@ elif st.session_state.current_tab == "telemetry":
         st.markdown(
             """
             <div style="font-family: var(--font-heading); font-size: 1.1rem; font-weight: 700; color: var(--text-pure); margin-bottom: 0.6rem;">
-                Routing Decision Breakdown
+                Routing Decisions (held-out predictions)
             </div>
             """,
             unsafe_allow_html=True
         )
         pie_fig = go.Figure(data=[go.Pie(
             labels=['Local Edge Node', 'AWS EC2 Cloud Node'],
-            values=[377, 126],
+            values=[STAT['scripts'] - STAT['routed_to_cloud'], STAT['routed_to_cloud']],
             hole=.55,
             marker_colors=['#10B981', chart_pred]
         )])
@@ -1326,7 +1358,7 @@ elif st.session_state.current_tab == "telemetry":
 
 # 5. Minimalist Developer Footer
 st.markdown(
-    """
+    f"""
     <div class="dev-footer">
         <div>
             <b style="color: var(--text-pure);">AI SCHEDULER</b>
@@ -1334,7 +1366,7 @@ st.markdown(
         </div>
         <div style="display: flex; gap: 20px; align-items: center;">
             <span>Edge: localhost:8000</span>
-            <span>Cloud: 18.60.41.230:8000</span>
+            <span>Cloud: {CLOUD_HOST}</span>
             <span style="color: #10B981; display: inline-flex; align-items: center; gap: 5px;">
                 <span class="pulse-dot"></span> Online
             </span>

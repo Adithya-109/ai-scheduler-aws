@@ -1,0 +1,14 @@
+[project]
+name = "ai-scheduler-aws"
+version = "0.2.0"
+description = "Predicts whether a Python job runs faster locally or on an EC2 worker, and routes it."
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["test_scripts", "build_journal_docx.py", "generate_diverse_scripts.py", "app.py", "landing-page"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B"]
+ignore = ["E501", "E402", "B008", "B023", "B905"]
