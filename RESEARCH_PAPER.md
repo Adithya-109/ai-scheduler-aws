@@ -1,46 +1,38 @@
-> **Note (2026-10):** the figures in this draft (99.4% accuracy, R² 0.972, "Random Forest", 503 scripts) come from the v1 pipeline and do not reproduce. The measured results, the corrected method and the evaluation are in `bench/RESULTS.md` and the README. Regenerate this paper before submitting it.
-
-
-# Intelligent Cloud-Edge Workload Orchestration via Static Abstract Syntax Tree Complexity Profiling and Real-Time Network Delay Harmonization
+# Intelligent Cloud-Edge Workload Orchestration via Static AST Cost Estimation and Live Network Measurement
 
 **Authors:** Adithya Binoj Nair  
 **Affiliation:** Department of Computer Science and Engineering, School of Computer Science and Engineering, Vellore Institute of Technology (VIT)  
 **Course Context:** Cloud Computing (CAD) Project Work  
-**Target Publication Venue:** IEEE / Springer Journal on Cloud and Edge Computing  
+
+> **Status of this draft.** Every number below is produced by code in this repository and can be regenerated with `python3 train_model.py` and `python3 bench/run_benchmarks.py` (tables in `bench/RESULTS.md`, raw output in `bench/results.json`, unseen-workload run in `bench/holdout_results.json`). The first version of this paper reported 99.4% routing accuracy, R² = 0.972 and a 41.8% latency reduction; those figures did not survive an audit (Section 4.6) and have been removed. The literature survey (Section 2) is carried over unchanged from the first draft and its references have **not** been re-verified; check each citation against the source before submission.
 
 ---
 
 ## Abstract
 
-Distributed cloud-edge computing systems promise low-latency, energy-efficient execution by offloading computationally intensive workloads from resource-constrained edge devices to remote cloud data centers. However, naive offloading strategies frequently induce significant performance degradation due to the "Offloading Paradox": the compute acceleration provided by high-performance cloud instances is frequently erased by the Wide Area Network (WAN) Round-Trip Time (RTT) penalty (typically 100 ms to 160 ms). Traditional scheduling architectures either rely on empirical threshold heuristics or require sandbox execution to profile code complexity, introducing unacceptable latency and security risks. 
+Offloading a job from a local "edge" machine to a cloud instance only pays off when the compute time saved exceeds the network cost of sending it. We study a scheduler for Python scripts that makes this decision *before* running anything: it parses the source into an abstract syntax tree (AST), estimates the work the program will do, predicts runtime on both nodes with gradient-boosted regressors trained only on measured timings, adds a live round-trip-time (RTT) estimate and a queue penalty, and routes the job to whichever side is predicted to finish first. A hardened HTTP worker, a dispatcher with cloud-to-edge fallback and a circuit breaker, a decision log, and a retraining loop that learns from that log complete the system.
 
-In this paper, we propose **AI Scheduler**, an intelligent, zero-execution workload orchestration framework that harmonizes static source code complexity profiling with dynamic WAN latency physics. The system features: (1) a pre-execution **Abstract Syntax Tree (AST)** feature extractor that extracts nine structural algorithmic complexity metrics in under 12 ms without executing untrusted code; (2) an **Active Network Delay Modeler** that characterizes real-time WAN round-trip latency to remote AWS EC2 cloud instances; (3) a **Dual-Engine Machine Learning Architecture** integrating a Random Forest classification model with log-scaled gradient boosting latency regressors; and (4) an autonomous REST-based execution fabric. 
+On 495 scripts with measured edge and cloud times, and with whole script families held out of training, the latency models reach R² = 0.91 (edge) and 0.89 (cloud) on log-runtime, with median absolute errors of 15% and 3%. On the same data the cloud was faster than the edge, once the 110 ms RTT is paid, for **1 of 495** scripts. The two nodes in the dataset are similar machines, so there is almost nothing to schedule: the scheduler's total time is within 3.1% of always running locally (109.3 s vs 106.0 s; oracle 105.9 s), and it cannot be shown to beat that baseline on this data. An earlier pipeline that used a classifier trained on synthetic labels sent 158 scripts to the cloud and was 35.6% *slower* than always-edge on the same scripts. On 16 hand-written scripts the generator never produced, the static complexity estimate has a Spearman rank correlation of 0.43 with measured runtime, which is useful but weak. We report these results as they are and describe the experiment (a real hardware asymmetry) that would test the claim the system is built for.
 
-Evaluated across an empirical benchmark suite of 503 diverse Python workloads spanning $O(1)$ scalar transformations to $O(N^3)$ dense matrix operations, the proposed dual-engine classifier achieves a **99.4% routing decision accuracy** and a latency regression goodness-of-fit of **$R^2 = 0.972$**, eliminating 100% of false cloud offloading events on lightweight payloads.
-
-**Keywords:** Cloud-Edge Computing, Computation Offloading, Abstract Syntax Tree, Static Analysis, Latency Prediction, Random Forest, AWS EC2, Machine Learning.
+**Keywords:** computation offloading, edge-cloud scheduling, static analysis, abstract syntax tree, latency prediction, gradient boosting, out-of-fold evaluation.
 
 ---
 
 ## 1. Introduction
 
-The proliferation of Internet of Things (IoT) sensors, mobile terminals, and autonomous cyber-physical systems has accelerated the adoption of hybrid cloud-edge computing architectures [1], [2]. Edge devices—ranging from embedded microcontrollers to local gateway processors—offer instantaneous execution with zero network transit penalty. However, their constrained computational capacity, restricted power budgets, and limited thermal envelopes restrict their ability to execute polynomial-time algorithms, dense matrix algebraic operations, or recursive graph analytics [3], [4].
+Edge devices run code with no network cost but limited compute; cloud instances offer more compute at the price of a wide-area round trip [1]–[6]. A script that takes 15 ms locally cannot benefit from a cloud node 110 ms away, however fast that node is. Deciding well therefore requires an estimate of how long the script will run on each side, obtained cheaply and without running untrusted code.
 
-Conversely, hyperscale cloud service providers such as Amazon Web Services (AWS) provide virtually elastic computing power capable of parallelizing complex scientific and machine learning workloads [5]. Despite this vast compute disparity, offloading arbitrary computational tasks to remote cloud instances introduces substantial Wide Area Network (WAN) transmission delays [6]. A lightweight task requiring only 15 ms of local compute time will incur 130 ms of total latency if dispatched to a cloud node operating across a 115 ms network round-trip delay. This counterproductive behavior is defined as the *False Offloading Dilemma*.
+Prior systems profile by executing code or require annotations [7], [8], assume a fixed network cost [9], or decide by comparing two noisy runtime predictions [10]. This project asks a narrower, testable question: *can a static, execution-free cost estimate plus measured runtimes and a live RTT pick the faster node, and by how much does it beat the trivial baseline of always running locally?*
 
-Existing computation offloading systems predominantly suffer from three fundamental limitations:
-1. **Dynamic Execution Overhead:** Dynamic profiling mechanisms (e.g., dynamic sandboxing or test-run tracing) necessitate partial execution of untrusted scripts to measure CPU cycles or memory allocation, introducing non-deterministic scheduling delays and vulnerability to malicious payloads [7], [8].
-2. **Asymmetric Network Agnosticism:** Traditional cloud schedulers assume constant or negligible network transmission latency, failing to adapt when transient WAN jitter or fluctuating geographic distances shift the optimal offload boundary [9].
-3. **Compound Regression Decision Errors:** Offloading engines that rely exclusively on comparing two independent continuous latency predictions (Predicted Edge Latency vs. Predicted Cloud Latency) suffer from compound prediction errors: a 15% underestimation of edge compute combined with a 15% overestimation of cloud compute flips the binary offloading decision, leading to degraded performance [10].
+Contributions:
 
-To resolve these challenges, this paper presents **AI Scheduler**, an end-to-end distributed system that statically analyzes Python source code complexity prior to execution and evaluates it against empirical network physics. The primary contributions of this research are:
-- **Zero-Execution AST Feature Extractor:** A syntax tree analysis engine that parses Python payloads into nine complexity indicators—including nested loop depth, recursive calls, tensor operations, and logarithmic complexity compression—in under 12 ms without executing the code.
-- **Dynamic Network Delay Harmonization:** An adaptive mathematical model that continuously probes and filters WAN latency to calculate whether remote compute speedup mathematically exceeds the communication overhead:
-  $$\Delta T = T_{\text{Edge}}^{\text{compute}} - \left(T_{\text{Cloud}}^{\text{compute}} + \text{RTT}_{\text{WAN}}\right) > 0$$
-- **Dual-Engine Machine Learning Architecture:** A hybrid ML framework uniting a 99.4% accurate Random Forest classification engine with dual log-scaled gradient boosting regressors ($R^2 = 0.972$) to prevent compound boundary decision flips.
-- **Production-Grade Distributed Testbed:** A fully functional distributed fabric deployed across local edge clients and an AWS EC2 instance running in `ap-south-2`, backed by a modern, high-performance visual dashboard.
+1. **A static cost analyser** that walks the AST and returns an estimate in log₁₀ "equivalent Python operations", with separate accounting for interpreted operations, NumPy element operations and BLAS floating-point work, per-loop bound inference with constant propagation, recursion growth, and detection of time-bound busy-wait loops (Section 3.2).
+2. **A decision rule with no learned veto.** Two regressors predict log-runtime on each node from measured data only; the route follows from the inequality in Section 3.1, and the confidence reported is the probability, under the models' measured error, that the chosen side really is faster.
+3. **A deployable execution layer**: authenticated, resource-limited workers, a dispatcher with fallback and circuit breaker, live RTT, queue-aware routing, runtime history, and a JSON-lines decision log from which the models are retrained (Section 3.4).
+4. **An evaluation designed to be hard to fool**: out-of-fold predictions with whole script families held out, scored by the *total wall-clock time* of each policy on real measurements against the oracle, always-edge and always-cloud baselines, plus an unseen-workload holdout (Section 4).
+5. **A negative result and an audit.** With the available data the scheduler does not beat always-edge, and the original headline numbers were artefacts (Section 4.6).
 
-The remainder of this paper is organized as follows: Section 2 reviews related literature across three foundational research domains. Section 3 details the proposed system architecture, mathematical formulation, and algorithmic modules with formal pseudocode. Section 4 presents empirical implementation results and inferences across 503 benchmark scripts. Section 5 evaluates performance metrics against baseline techniques with use case illustrations. Section 6 concludes the paper and outlines future directions.
+Section 2 surveys related work; Section 3 describes the method; Section 4 gives results; Section 5 discusses performance and limits; Section 6 concludes.
 
 ---
 
@@ -65,421 +57,160 @@ Chen and Bahsoon [34] proposed self-adaptive latency prediction models for multi
 
 ---
 
-## 3. Proposed Systems
+## 3. Method
 
-The **AI Scheduler** architecture addresses the limitations identified in prior literature by decoupling code complexity profiling from actual execution and incorporating live network physics into the offloading decision.
+### 3.1 Decision rule
 
-### 3.1 Mathematical Model & Decision Formulation
-Let a submitted Python script be denoted as $S$. The total execution turnaround time when processed locally on the Edge node ($T_{\text{Edge}}^{\text{total}}$) consists entirely of local CPU compute time, as the network transit overhead across the loopback interface is negligible:
-$$T_{\text{Edge}}^{\text{total}} = T_{\text{Edge}}^{\text{compute}}(S)$$
+For a script $S$, let $\hat t_E(S)$ and $\hat t_C(S)$ be the predicted compute times on the edge and cloud nodes, $r$ the round-trip time to the cloud worker, $b$ the payload size and $B$ the uplink bandwidth, and $q_E, q_C$ queue penalties for nodes whose job slots are full. The estimated turnaround times are
 
-Conversely, the total turnaround time when offloaded to the AWS EC2 Cloud instance ($T_{\text{Cloud}}^{\text{total}}$) is the sum of the cloud compute duration, the wide-area network round-trip delay ($\text{RTT}_{\text{WAN}}$), and the data transmission serialization delay:
-$$T_{\text{Cloud}}^{\text{total}} = T_{\text{Cloud}}^{\text{compute}}(S) + \text{RTT}_{\text{WAN}} + \frac{\text{Size}(S)}{\text{Bandwidth}_{\text{WAN}}}$$
+$$T_E = \hat t_E + q_E, \qquad T_C = \hat t_C + r + \frac{b}{B} + q_C ,$$
 
-Because code payload sizes in script offloading are typically small ($< 10 \text{ KB}$), the serialization delay $\frac{\text{Size}(S)}{\text{Bandwidth}}$ is sub-millisecond and absorbed into the baseline RTT. Therefore, the optimal scheduling decision function $\mathcal{D}(S) \in \{\text{EDGE}, \text{CLOUD}\}$ is formulated as:
-$$\mathcal{D}(S) = \begin{cases} 
-\text{CLOUD}, & \text{if } T_{\text{Edge}}^{\text{compute}}(S) - T_{\text{Cloud}}^{\text{compute}}(S) > \text{RTT}_{\text{WAN}} \\ 
-\text{EDGE}, & \text{otherwise} 
-\end{cases}$$
+and the scheduler routes to the cloud if and only if
 
-### 3.2 System Architecture Diagram
-The overall distributed system architecture consists of three interconnected tiers: the **Master Controller**, the **Local Edge Worker**, and the **AWS EC2 Cloud Worker Node**, illustrated in Figure 1.
+$$T_C < T_E\,(1-m),$$
 
-```
-+-------------------------------------------------------------------------------------------------------+
-|                                    MASTER CONTROLLER (CLIENT TIER)                                    |
-|                                                                                                       |
-|   +-----------------------+      +---------------------------+      +-----------------------------+   |
-|   |  Python Source Code   | ---> |  Static AST Feature       | ---> |  Dual-Engine ML Inferencer  |   |
-|   |  Workload Payload (S) |      |  Extractor (Module 1)     |      |  (Module 3)                 |   |
-|   +-----------------------+      +---------------------------+      +-----------------------------+   |
-|                                                                                    |                  |
-|   +-----------------------+      +---------------------------+                     v                  |
-|   |  Active WAN Network   | ---> |  Dynamic Latency Penalty  | ----> [ Decision Arbitration Engine ]   |
-|   |  RTT Prober (Module 2)|      |  Compensation ($\tau_{RTT}$) |                     |                  |
-|   +-----------------------+      +---------------------------+                     |                  |
-|                                                                                    |                  |
-|                                         +------------------------------------------+                  |
-|                                         |                                          |                  |
-|                               [ Decision == EDGE ]                       [ Decision == CLOUD ]        |
-+-----------------------------------------|------------------------------------------|------------------+
-                                          |                                          |
-                                          v (HTTP REST / 0ms)                        v (WAN REST / ~130ms)
-                    +------------------------------------+     +------------------------------------+
-                    |       LOCAL EDGE WORKER NODE       |     |        AWS EC2 CLOUD NODE          |
-                    |       (localhost:8000/execute)     |     |     (EC2_PUBLIC_IP:8000/execute)    |
-                    |                                    |     |                                    |
-                    |  - Lightweight CPU Core            |     |  - High-Throughput Cloud vCPU      |
-                    |  - Zero Network Transit Penalty    |     |  - NumPy / PyTorch BLAS Cores      |
-                    |  - Sub-Millisecond Dispatch        |     |  - WAN Inbound Security Group 8000 |
-                    +------------------------------------+     +------------------------------------+
-                                          |                                          |
-                                          +-------------------+----------------------+
-                                                              |
-                                                              v
-                                            +------------------------------------+
-                                            |   TELEMETRY & COMPARISON ENGINE    |
-                                            |   (Module 4 - app.py Visualizer)   |
-                                            +------------------------------------+
-```
-*Figure 1: Architectural framework of the AI Scheduler platform.*
+where $m \ge 0$ is an optional safety margin (default 0). This is the only decision path. An earlier design also trained a classifier whose output could veto this comparison; it was removed because its labels were synthetic (Section 4.6).
+
+**Confidence.** With out-of-fold residual standard deviations $\sigma_E, \sigma_C$ (in log₁₀ seconds) stored at training time, the log-ratio $d=\ln T_E-\ln T_C$ is treated as normally distributed with standard deviation $s=\ln 10\sqrt{\sigma_E^2+(\sigma_C\,\hat t_C/T_C)^2}$. The reported confidence is $\Phi(d/s)$ if the cloud is chosen and $1-\Phi(d/s)$ otherwise: the probability that the chosen side is the faster one, assuming the model error is as measured. It is therefore at least 0.5 when $m=0$. This is a normal approximation, not a calibrated probability, and Section 5.4 lists it as a limitation.
+
+### 3.2 Static cost estimation
+
+The analyser parses the source with Python's `ast` module and never executes it. It returns thirteen features (`num_lines`, `num_loops`, `max_loop_depth`, `num_operations`, `has_heavy_lib`, `num_function_calls`, `num_comprehensions`, `has_recursion`, `time_bound_s`, `log_python_ops`, `log_numpy_elems`, `log_blas_flops`, `estimated_complexity`). The cost features are computed as follows.
+
+* **Loop bounds.** `for i in range(n)` uses the constant bound when it can be resolved (literals, simple constant propagation, `range` arguments); nested loops multiply. An unresolvable `for` bound is assumed to run 100 iterations and an unresolvable `while` 1000. These defaults are guesses, and they are the largest known source of error (Section 4.5).
+* **Log-space arithmetic.** Costs are carried as log₁₀ values and added with a log-sum-exp, so deeply nested or large-constant programs cannot overflow. The first version used `max_integer ** loop_depth` and saturated at a clamp.
+* **Three cost channels.** Interpreted operations are counted as Python ops; NumPy array expressions contribute element operations; matrix products, solves and inversions contribute BLAS flops. They are kept separate because their cost per unit differs by orders of magnitude, and the regressors learn the exchange rate.
+* **Comprehensions and recursion.** Comprehensions are treated as loops over their source iterable. For self-recursive functions the call-count growth rate is found by bisection on the recurrence implied by the number of self-calls per body, so `fib(n)` grows as $\varphi^n$ rather than being treated as a single call.
+* **Time-bound busy-wait.** `while time.time() - t < c` is recognised and contributes a floor of $c$ seconds in `time_bound_s`, because its cost is wall-clock rather than operation count.
+* **Budget.** Traversal stops after a fixed node budget; the result is flagged `analysis_degraded` rather than raising.
+
+`estimated_complexity` is the log₁₀ of the combined operation estimate and is used for display and for the rank-correlation test in Section 4.5; the models consume the full feature vector.
+
+### 3.3 Latency models
+
+Two `HistGradientBoostingRegressor`s (depth 5, learning rate 0.06, early stopping on a 15% validation split) predict $\log_{10}$ runtime on the edge and on the cloud from the feature vector. Targets are **measured** times only. Predicting the log makes errors relative, which matches the decision (a ratio), and resolves the six-orders-of-magnitude spread in runtimes. Library versions are recorded in the model metadata and checked on load because scikit-learn pickles are not portable across versions.
+
+### 3.4 Execution layer
+
+* **Worker** (FastAPI): `X-API-Key` authentication with constant-time comparison; refuses to bind a non-loopback address without a key; runs each job in a fresh interpreter in isolated mode with a scrubbed environment, a private working directory, CPU-time and memory `rlimit`s, a wall-clock timeout, output and code size caps, and process-group kill; bounded concurrent slots with HTTP 503 when full; unauthenticated `/health` reporting active jobs and CPU count. This is *hardening, not a sandbox*: the worker still runs arbitrary code with the privileges of its user and must be deployed with the network and instance controls in `docs/DEPLOY.md`.
+* **RTT.** An exponentially weighted moving average over `/health` round trips supplies $r$. Precedence: explicit setting (the UI slider), then the live estimate, then the value measured at training.
+* **Dispatcher.** Runs the job on the chosen node; falls back to the edge on cloud error; opens a circuit breaker after consecutive cloud failures; optionally explores the non-chosen side with probability $\epsilon$ on low-confidence jobs so both models keep seeing data.
+* **History.** If a script (by content hash) has at least two clean prior runs on a side, the observed median replaces the regression for that side and its error is taken as small ($\sigma=0.05$ log₁₀), which covers code the static analyser cannot see through.
+* **Decision log and retraining.** Every dispatch appends one JSON line (features, predictions, decision, outcome, timings). `train_model.py --log` adds logged outcomes to the training set, closing the loop.
 
 ---
 
-### 3.3 Module 1: Pre-Execution AST Static Feature Extraction Engine
-#### Explanation:
-Module 1 extracts code complexity characteristics without code execution. The module subclasses Python's built-in `ast.NodeVisitor` to perform an exhaustive traversal of the Abstract Syntax Tree. It tracks nine structural features:
-1. `num_lines`: Non-empty lines of code.
-2. `num_loops`: Count of `For` and `While` loop header nodes.
-3. `max_loop_depth`: Maximum depth of nested loop structures.
-4. `num_operations`: Count of binary arithmetic and bitwise expressions (`ast.BinOp`).
-5. `has_heavy_lib`: Binary flag indicating presence of optimized numerical libraries (`numpy`, `pandas`, `torch`, `tensorflow`, `scipy`).
-6. `num_function_calls`: Number of explicit function invocations (`ast.Call`).
-7. `num_comprehensions`: Count of list, set, and dictionary comprehensions (`ast.ListComp`, `ast.DictComp`).
-8. `max_integer`: Largest integer constant literal (`ast.Constant`) occurring within the code.
-9. `estimated_complexity`: A compressed non-linear complexity metric combining loop nesting with upper bounds:
-   $$\mathcal{C}_{\text{raw}} = \begin{cases} 
-   (\text{max\_integer})^{\text{loop\_depth}}, & \text{if } \text{num\_loops} > 0 \\ 
-   \frac{(\text{max\_integer})^{2.5}}{10}, & \text{if } \text{has\_heavy\_lib} = 1 \\ 
-   \text{num\_lines} \times 10, & \text{otherwise} 
-   \end{cases}$$
-   $$\text{estimated\_complexity} = \log_{10}\left(\min\left(\max(\mathcal{C}_{\text{raw}}, 1.0), 10^{12}\right)\right)$$
+## 4. Results
 
-#### Pseudocode:
-```python
-Algorithm 1: Static AST Feature Extraction Engine
-Input : Source code string S
-Output: Feature vector X_feat in R^9 or Error E
+All numbers come from `bench/RESULTS.md` (full mode; Python 3.13, scikit-learn 1.9.1, 2 CPUs) unless stated otherwise.
 
-1: Initialize: num_lines <- 0, loop_depth <- 0, curr_depth <- 0
-2: Initialize: num_loops <- 0, num_ops <- 0, has_heavy_lib <- 0
-3: Initialize: num_calls <- 0, num_comps <- 0, max_int <- 0
-4: 
-5: lines <- Split S by newline where line is not whitespace
-6: num_lines <- Length(lines)
-7: 
-8: Try:
-9:     ast_tree <- ParseAST(S)
-10: Catch SyntaxError as err:
-11:     Return Error("AST Syntax Parsing Failed: " + err.message)
-12: 
-13: Traverse(ast_tree) with Visitor:
-14:     On Node(ast.For) or Node(ast.While):
-15:         num_loops <- num_loops + 1
-16:         curr_depth <- curr_depth + 1
-17:         If curr_depth > loop_depth Then loop_depth <- curr_depth
-18:         VisitChildren(Node)
-19:         curr_depth <- curr_depth - 1
-20: 
-21:     On Node(ast.BinOp):
-22:         num_ops <- num_ops + 1
-23:         VisitChildren(Node)
-24: 
-25:     On Node(ast.Import) or Node(ast.ImportFrom):
-26:         If ModuleName in {"numpy", "scipy", "torch", "tensorflow", "pandas"} Then:
-27:             has_heavy_lib <- 1
-28: 
-29:     On Node(ast.Constant) where Value is Integer:
-30:         If Value > max_int and Value < 10^9 Then max_int <- Value
-31: 
-32:     On Node(ast.Call):
-33:         num_calls <- num_calls + 1
-34: 
-35:     On Node(ast.ListComp) or Node(ast.DictComp) or Node(ast.SetComp):
-36:         num_comps <- num_comps + 1
-37: 
-38: // Compute bounded non-linear complexity metric
-39: If num_loops > 0 Then:
-40:     raw_comp <- (max_int)^(loop_depth)
-41: Else If has_heavy_lib == 1 Then:
-42:     raw_comp <- ((max_int)^2.5) / 10.0
-43: Else:
-44:     raw_comp <- num_lines * 10.0
-45: 
-46: raw_comp <- Min(Max(raw_comp, 1.0), 10^12)
-47: est_complexity <- log10(raw_comp)
-48: 
-49: Return {num_lines, loop_depth, num_loops, num_ops, has_heavy_lib,
-50:         num_calls, num_comps, max_int, est_complexity}
-```
+### 4.1 Data
+
+The dataset is 495 scripts, each with a measured edge time and cloud time (`hardware_benchmark.csv`, the audited form of the first draft's measurements, keyed by file name; features are recomputed from the script source so labels cannot drift out of alignment). Scripts come from parameterised templates (`generate_diverse_scripts.py`) spanning loops, nested and triple loops, recursion, sorting, string and dictionary work and NumPy matrix and element-wise operations, plus a set of generated `script_NNN` programs. For grouped evaluation each hand-written template is one *family* and the roughly 450 generated programs are bucketed into eight families by index. Median runtimes are 35 ms (edge) and 17 ms (cloud); the maximum is about 10 s on both. RTT is 110 ms.
+
+**The two nodes are similar machines.** The cloud's compute time is lower for 373 of 495 scripts, but after adding the RTT the cloud wins on 1 of 495. The dataset therefore contains almost no examples in which routing to the cloud is correct.
+
+### 4.2 Evaluation protocol
+
+Predictions are produced **out of fold**: 5-fold `GroupKFold` with groups equal to script family, so the model never sees a family it is scored on. For each script we then add up the wall-clock time each policy would have spent, using the measured times:
+
+* *oracle* — the better of (edge) and (cloud + RTT) per script;
+* *always edge*, *always cloud*;
+* *scheduler* — the measured time of whichever side it chose.
+
+This answers the practical question directly (is the scheduler better than not scheduling?) and does not reward accuracy on easy cases. Reporting "routing accuracy" alone is misleading here: always choosing the edge agrees with the measured winner on 494 of 495 scripts (99.8%).
+
+### 4.3 Model quality (out of fold, families held out)
+
+| Metric | Edge | Cloud |
+| --- | ---: | ---: |
+| R² on log₁₀ runtime | 0.911 | 0.889 |
+| Median absolute % error | 15.3% | 2.9% |
+| Residual σ (log₁₀ s) | 0.150 | 0.220 |
+
+### 4.4 Scheduling outcome
+
+| Policy | Total time (s) | vs always-edge |
+| --- | ---: | ---: |
+| Oracle | 105.9 | −0.0% |
+| Always edge | 106.0 | baseline |
+| **Scheduler** | **109.3** | **+3.1%** |
+| Always cloud | 182.9 | +72.6% |
+
+The scheduler sends 2 scripts to the cloud (1 is a true cloud win) and loses 3.3 s to the oracle. It does not beat always-edge; with a single cloud-favourable script in the data that outcome cannot be changed by a better model. Sensitivity to RTT behaves as expected:
+
+| RTT | 1 ms | 10 ms | 50 ms | 110 ms | 200 ms | 500 ms |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Routed to cloud | 74.3% | 62.3% | 1.5% | 1.4% | 1.4% | 1.4% |
+
+No script flips from edge to cloud as RTT rises. Binning scripts by estimated complexity (eight bins, median per bin), the measured edge time is 29–45 ms for the first six bins and the cloud time plus RTT is 125–147 ms. In the heaviest bin (about 7.3 log₁₀ ops) the edge takes 0.87 s and the cloud 2.13 s including the RTT: the two curves approach but never cross in the data (Section 5.2).
+
+### 4.5 Unseen workloads
+
+To test the extractor on code it was not developed against, 16 scripts were written by hand (`holdout/`): a sieve, Collatz, trial-division primes, an LCS dynamic program, recursive Fibonacci, dictionary and string workloads, NumPy matrix multiply, elementwise and inverse, a large sort, a busy-wait, and a trivial `print`. Each was run three times locally (median reported, `bench/holdout.py`).
+
+The Spearman rank correlation between `estimated_complexity` and measured runtime is **0.43** ($n=16$). This is a weak positive relation, not a good predictor, and a sample of 16 gives a wide interval. The misses are informative: loop bounds derived from `len()` of constructed strings (the LCS program) and `while` loops with a non-constant bound (trial division) fall back to the default guesses and are underestimated; NumPy workloads carry a fixed interpreter-plus-import cost of about 0.1 s that has nothing to do with problem size. The regressors, not this raw feature, drive routing, and the history mechanism (Section 3.4) exists for exactly these programs; but the held-out check of the full scheduler on unseen scripts requires real two-node measurements and has not been done.
+
+### 4.6 Audit of the original results
+
+The first draft reported 99.4% routing accuracy, R² = 0.972 and a 41.8% latency reduction. Re-running the original pipeline and inspecting it showed:
+
+* the routing label was derived from an `edge_scale` factor invented in the training script (`modeled_edge_time = actual_edge_time * edge_scale`), so the classifier learned to reproduce a formula rather than a measurement, and its accuracy was scored against that same formula;
+* the regressors' R² came from `cross_val_score(cv=5)` over the rows in file order, ignoring script families, with near-duplicate parameterisations of the same template free to fall on both sides of a split;
+* feature values were stored in the CSV beside the timings rather than recomputed from the scripts, so any change to the extractor left stale features, and rows carried no file name;
+* on the shipped data the old pipeline routed 158 scripts to the cloud and took 143.7 s, **35.6% slower** than always-edge (106.0 s);
+* the old and new R² (0.972 vs 0.91/0.89) are not comparable: they use different features, a different target construction and, crucially, different splits.
+
+The corrected pipeline routes 2 scripts to the cloud and takes 109.3 s (+3.1%). Reproduction: `python3 bench/run_benchmarks.py` (the "before vs after" table) and `tests/test_audit.py`.
+
+### 4.7 Overheads and execution layer
+
+| Step | p50 | p95 |
+| --- | ---: | ---: |
+| AST feature extraction | 0.63 ms | 1.06 ms |
+| Full `schedule()` call (features + both models + rule) | 3.56 ms | 5.29 ms |
+| Model cold load | 20 ms | — |
+| Interpreter spawn per job | 17.7 ms | — |
+
+The first draft claimed extraction "in under 12 ms"; it is about 0.6 ms. A concurrency test against a local worker over real sockets (40 requests, 2 CPUs) completes 14, 26 and 27 requests at 1, 2 and 4 slots and returns HTTP 503 for the rest instead of queueing without bound. The FastAPI front end could not be installed in the audit environment; the same wire contract is exercised through a stdlib server around the identical runner code, and the repository's test suite passes.
 
 ---
 
-### 3.4 Module 2: Active Network RTT Delay Modeling & WAN Profiler
-#### Explanation:
-Module 2 prevents false offloading by establishing active network physics. During system calibration, the prober issues $K = 7$ consecutive lightweight probe requests (`{"code": "pass"}`) to the remote AWS EC2 instance. For each probe $k$, the total transit time $T_{\text{elapsed}}^{(k)}$ and server-side compute duration $T_{\text{server}}^{(k)}$ are captured. The pure network round-trip time is isolated:
-$$\text{RTT}^{(k)} = T_{\text{elapsed}}^{(k)} - T_{\text{server}}^{(k)}$$
-To filter transient network spikes or packet retransmission outliers, the framework computes the median sample:
-$$\tau_{\text{RTT}} = \text{Median}\left(\{\text{RTT}^{(1)}, \text{RTT}^{(2)}, \dots, \text{RTT}^{(K)}\}\right)$$
+## 5. Performance, limits and what remains
 
-#### Pseudocode:
-```python
-Algorithm 2: Active WAN Network Delay Profiler
-Input : Cloud Worker URL U_cloud, Probe Count K
-Output: Filtered Network RTT tau_RTT in seconds
+### 5.1 Comparison with the baselines
 
-1: Initialize: rtt_samples <- []
-2: 
-3: For k from 1 to K Do:
-4:     t_start <- GetHighResolutionTimestamp()
-5:     Try:
-6:         response <- HTTP_POST(U_cloud, payload={"code": "pass"}, timeout=5.0)
-7:         t_elapsed <- GetHighResolutionTimestamp() - t_start
-8:         
-9:         If response.status_code == 200 Then:
-10:             t_server <- response.json()["execution_time_seconds"]
-11:             net_rtt <- Max(0.001, t_elapsed - t_server)
-12:             Append net_rtt to rtt_samples
-13:     Catch NetworkException:
-14:         Continue
-15: End For
-16: 
-17: If Length(rtt_samples) >= 3 Then:
-18:     tau_RTT <- Median(rtt_samples)
-19: Else:
-20:     tau_RTT <- 0.130  // Empirical fallback default: 130 ms
-21: 
-22: Store tau_RTT in models/training_metadata.json
-23: Return tau_RTT
-```
+On the data available, the ranking is oracle ≈ always-edge < scheduler < always-cloud. The scheduler's value on this data is that it **avoids the 72.6% penalty of always-cloud** and the 35.6% penalty of the original design while staying within 3.1% of the best fixed policy. It does not demonstrate a gain over running locally.
 
----
+### 5.2 Where offloading would pay
 
-### 3.5 Module 3: Dual-Engine Machine Learning Latency Prediction & Routing Classifier
-#### Explanation:
-Module 3 implements the decision intelligence. Rather than relying on a single regression comparison, the framework couples:
-1. **Dual Log-Scaled Histogram Gradient Boosting Regressors:** Predicts continuous compute times $\hat{T}_{\text{Edge}}$ and $\hat{T}_{\text{Cloud}}$. Because execution latencies span four orders of magnitude (from 0.001 s to 10.0 s), targets are trained in logarithmic space:
-   $$y_{\text{log}} = \log_{10}(T_{\text{compute}} + \epsilon), \quad \epsilon = 10^{-6}$$
-   Predictions are transformed back via:
-   $$\hat{T}_{\text{compute}} = 10^{\hat{y}_{\text{log}}} - \epsilon$$
-2. **Stratified Cost-Sensitive Random Forest Classifier:** Directly outputs $\hat{\mathcal{D}} \in \{0, 1\}$ ($0 = \text{EDGE}, 1 = \text{CLOUD}$) using class-weight compensation:
-   $$w_1 = \frac{N_{\text{edge}}}{N_{\text{cloud}}}$$
-3. **Harmonized Arbitration Logic:** If edge compute is faster than cloud compute + network delay ($\hat{T}_{\text{Edge}} \le \hat{T}_{\text{Cloud}} + \tau_{\text{RTT}}$), the system deterministically selects `EDGE`. When cloud acceleration appears mathematically advantageous ($\hat{T}_{\text{Edge}} > \hat{T}_{\text{Cloud}} + \tau_{\text{RTT}}$), the decision is passed to the Random Forest classifier to confirm that structural syntax patterns substantiate cloud speedup.
+For a job with edge time $t_E$ and cloud time $t_C$, offloading helps when $t_E - t_C > r + b/B$. At $r=110$ ms the cloud must save more than 110 ms of compute, so no job faster than about 0.1 s on the edge can ever benefit. In the dataset the heaviest jobs take about the same time on both nodes (maxima of about 10 s each), so even among long jobs the cloud saves almost nothing; only one script clears the bar. A cloud node with several times the edge's compute (more cores for BLAS, a faster CPU) would pull the break-even down towards jobs of a few hundred milliseconds. This is a prediction of the model, to be tested, not a measured result.
 
-#### Pseudocode:
-```python
-Algorithm 3: Harmonized Dual-Engine Latency Prediction and Scheduling
-Input : Feature Vector X_feat, Network Delay tau_RTT,
-        Scaler M_scale, Edge Model M_edge, Cloud Model M_cloud,
-        Classifier M_clf (optional)
-Output: Decision D in {EDGE, CLOUD}, Confidence C, Latencies {T_edge, T_cloud}
+### 5.3 Experiment needed to test the claim
 
-1: X_norm <- M_scale.Transform(X_feat)
-2: 
-3: // Step 1: Continuous Latency Regression
-4: log_pred_edge  <- M_edge.Predict(X_norm)
-5: log_pred_cloud <- M_cloud.Predict(X_norm)
-6: 
-7: pred_edge_time  <- (10^(log_pred_edge)) - 10^(-6)
-8: pred_cloud_comp <- (10^(log_pred_cloud)) - 10^(-6)
-9: pred_cloud_total <- pred_cloud_comp + tau_RTT
-10: 
-11: // Step 2: Harmonized Decision Arbitration
-12: If pred_edge_time <= pred_cloud_total Then:
-13:     decision <- "EDGE"
-14:     If M_clf is Loaded Then:
-15:         prob_dist <- M_clf.PredictProba(X_norm)
-16:         confidence <- prob_dist[0] // Probability of Edge
-17:     Else:
-18:         confidence <- Min(1.0, (pred_cloud_total - pred_edge_time) / pred_cloud_total)
-19: Else:
-20:     // Cloud compute + RTT is faster than Edge
-21:     If M_clf is Loaded Then:
-22:         clf_label <- M_clf.Predict(X_norm)
-23:         prob_dist <- M_clf.PredictProba(X_norm)
-24:         If clf_label == 1 Then:
-25:             decision <- "CLOUD"
-26:             confidence <- prob_dist[1]
-27:         Else:
-28:             decision <- "EDGE"  // Classifier overrides regression margin error
-29:             confidence <- prob_dist[0]
-30:     Else:
-31:         decision <- "CLOUD"
-32:         confidence <- Min(1.0, (pred_edge_time - pred_cloud_total) / pred_edge_time)
-33: 
-34: Return {Decision: decision, Confidence: confidence,
-35:         Predicted_Edge: pred_edge_time, Predicted_Cloud: pred_cloud_total}
-```
+1. Make the nodes genuinely different (`docs/DEPLOY.md`: for example a throttled local worker versus a multi-core instance).
+2. Re-collect with `collect_data.py` (repeated runs, spread and failures recorded, hardware metadata stored), retrain with `train_model.py --probe`, and re-run `bench/run_benchmarks.py`.
+3. Report scheduler vs always-edge, always-cloud and oracle with families held out, as in Section 4.2.
 
----
+### 5.4 Limitations and threats to validity
 
-### 3.6 Module 4: Autonomous REST-Based Distributed Dispatcher & Telemetry Capture Engine
-#### Explanation:
-Module 4 handles communication and telemetry. Once the decision is reached, the payload is packaged into an asynchronous JSON payload `{"code": S}` and dispatched via HTTP POST to the chosen node endpoint (`http://localhost:8000/execute` or `http://EC2_PUBLIC_IP:8000/execute`). The worker executes the script in an isolated subprocess, captures standard output (`stdout`), standard error (`stderr`), and CPU execution duration, returning telemetry to the master controller to validate prediction accuracy in real time.
-
-#### Pseudocode:
-```python
-Algorithm 4: Autonomous REST Dispatcher and Telemetry Capture
-Input : Source code S, Routing Decision D, Local URL U_local, Cloud URL U_cloud
-Output: Execution Telemetry Record R_telem
-
-1: If D == "EDGE" Then:
-2:     target_url <- U_local
-3:     node_label <- "Local Edge Worker"
-4: Else:
-5:     target_url <- U_cloud
-6:     node_label <- "AWS EC2 Cloud Node"
-7: 
-8: t_dispatch_start <- GetHighResolutionTimestamp()
-9: Try:
-10:     http_resp <- HTTP_POST(target_url, json_data={"code": S}, timeout=65.0)
-11:     total_rtt <- GetHighResolutionTimestamp() - t_dispatch_start
-12:     
-13:     If http_resp.status_code == 200 Then:
-14:         payload_res <- http_resp.json()
-15:         server_exec_time <- payload_res["execution_time_seconds"]
-16:         stdout_text      <- payload_res["stdout"]
-17:         stderr_text      <- payload_res["stderr"]
-18:     Else:
-19:         Raise Exception("Worker returned HTTP " + http_resp.status_code)
-20: Catch Exception as ex:
-21:     Return Error("Remote Execution Failed: " + ex.message)
-22: 
-23: Return {Target_Node: node_label, Target_URL: target_url,
-24:         Server_Compute_Time: server_exec_time, Total_Network_RTT: total_rtt,
-25:         Stdout: stdout_text, Stderr: stderr_text}
-```
-
----
-
-## 4. Results and Implementation
-
-### 4.1 Dataset Description
-To train and validate the predictive models across realistic computational regimes, we synthesized and benchmarked **503 unique Python scripts** (`hardware_benchmark.csv`). Each script was executed natively on both the local edge machine and the remote AWS EC2 instance (`t3.micro`, Ubuntu 22.04 LTS, IP: `EC2_PUBLIC_IP`). The distribution of workloads is summarized in Table 1.
-
-| Workload Category | Script Count | Typical Complexity | Target Operations | Representative Benchmark |
-| :--- | :--- | :--- | :--- | :--- |
-| **Dense Matrix Algebra** | 72 | $O(N^{2.5}) - O(N^3)$ | `numpy.dot`, matrix inversions, SVD | $1000 \times 1000 \to 3000 \times 3000$ multiplication |
-| **Recursive Algorithms** | 48 | $O(2^N)$ | Recursive Fibonacci, tree traversals | Recursive Fibonacci ($N = 20 \to 35$) |
-| **Nested Compute Loops** | 125 | $O(N^2) - O(N^3)$ | Double/triple integer hashing | $500 \times 2000$ to $2000 \times 3000$ nested loops |
-| **String Heuristics** | 86 | $O(N)$ | Substring search, regex, capitalization | Text manipulation ($50\text{k} \to 1\text{M}$ words) |
-| **Sorting & Memory Ops** | 92 | $O(N \log N)$ | Quicksort, merge sort, list comps | Array sorting ($100\text{k} \to 2\text{M}$ elements) |
-| **Mixed Tensor Pipelines** | 80 | $O(N^2)$ | Array transformations, vector norms | $100\text{M}$ numerical float ops |
-| **Total Benchmark Suite** | **503** | **$O(1) \to O(N^3)$** | **Comprehensive AST Profiles** | **Full Distribution** |
-
-*Table 1: Structural distribution and complexity profiles of the 503 benchmark workloads.*
-
----
-
-### 4.2 Module 1 Inferences: AST Extraction Performance & Overhead
-The static AST feature extraction engine was evaluated across all 503 benchmark scripts to determine extraction latency as a function of source code length.
-- **Inference 1.1:** The mean AST feature extraction overhead was measured at **$1.84 \text{ ms}$**, with a 99th-percentile tail latency of **$11.6 \text{ ms}$**. Because AST parsing operates strictly on source text without code compilation or bytecode generation, its computational overhead is independent of the script's actual runtime duration. A script requiring 10 seconds of matrix multiplication is parsed in the same ~2 ms as a 1-millisecond string manipulation task.
-- **Inference 1.2:** The logarithmic complexity compression feature (`estimated_complexity`) demonstrated a Pearson correlation of $r = 0.91$ with observed hardware compute times, successfully bridging the feature-to-latency mapping gap across large polynomial scales.
-
----
-
-### 4.3 Module 2 Inferences: Network RTT Delay Dynamics & WAN Characterization
-Active network probes conducted against the AWS EC2 instance (`EC2_PUBLIC_IP`) across different times of day yielded empirical latency profiles:
-- **Inference 2.1:** The median measured network RTT was **$109.7 \text{ ms}$**, fluctuating within a standard deviation of $\sigma = 18.2 \text{ ms}$ (inter-quartile range: $102 \text{ ms} - 138 \text{ ms}$). Transient network spikes reached up to $185 \text{ ms}$.
-- **Inference 2.2:** Because the typical network latency baseline is $\sim 110-130 \text{ ms}$, any workload whose local edge execution duration is below $130 \text{ ms}$ must never be offloaded to the cloud, even if the cloud instance possesses infinite processing power. Module 2's median filtering reliably identified this cutoff boundary.
-
----
-
-### 4.4 Module 3 Inferences: Dual-Engine Model Convergence & Accuracy
-The dual-engine machine learning framework was evaluated using 5-fold stratified cross-validation on the 503 benchmark samples.
-- **Inference 3.1:** The Random Forest routing classifier attained a **$99.4\% \pm 0.4\%$ cross-validated accuracy** ($F_1\text{-score} = 0.99$). The confusion matrix on empirical validation data revealed:
-  - True Edge: 377 / 377 (100% precision)
-  - True Cloud: 123 / 126 (97.6% recall)
-  - False Edge Offload: 3 instances (occurring exclusively within the marginal $\pm 4 \text{ ms}$ RTT jitter boundary)
-- **Inference 3.2:** The latency regression models achieved goodness-of-fit scores of **$R^2 = 0.972$ (Edge model)** and **$R^2 = 0.955$ (Cloud model)** in logarithmic target space, confirming high predictive fidelity across heterogeneous task scales.
-- **Inference 3.3:** Permutation feature importance analysis revealed that `estimated_complexity` (importance: 0.482), `has_heavy_lib` (0.241), and `max_loop_depth` (0.165) represent the three most influential predictors of execution duration.
-
----
-
-### 4.5 Module 4 Inferences: Live Dispatch & Telemetry Verification
-During live workload executions executed through the Streamlit orchestrator dashboard:
-- **Inference 4.1:** Lightweight workloads (e.g., string operations, sorting $< 250\text{k}$ elements) were dispatched locally with 0 ms network delay, completing in $0.003 \text{ s} - 0.045 \text{ s}$. Dispatching these tasks to AWS EC2 would have caused a $300\% - 4000\%$ latency degradation.
-- **Inference 4.2:** Heavy workloads (e.g., $2000 \times 2000$ NumPy matrix dot product) executed on AWS EC2 in $0.312 \text{ s}$, which, when combined with $0.134 \text{ s}$ network RTT ($0.446 \text{ s}$ total), provided a **$6.4\times$ net speedup** compared to the local edge node ($2.850 \text{ s}$).
-
----
-
-## 5. Performance and Metrics
-
-### 5.1 Comparative Methodology Evaluation
-We evaluated the proposed dual-engine scheduling architecture against two prevailing offloading paradigms across the entire 503-workload benchmark dataset:
-1. **Static Threshold Heuristic (Baseline A):** Offloads tasks to the cloud whenever lines of code exceed 15 or a loop is detected ($N_{\text{loops}} \ge 1$), agnostic to network latency.
-2. **Pure Latency Regression (Baseline B):** Evaluates independent edge and cloud regressors without classification harmonization: $\text{Offload if } \hat{T}_{\text{Edge}} > \hat{T}_{\text{Cloud}} + \tau_{\text{RTT}}$.
-3. **Proposed Dual-Engine Framework (AI Scheduler):** Combines static AST profiling, active WAN delay compensation, and Random Forest classification with log-scaled regression arbitration.
-
-| Evaluation Metric | Baseline A (Static Threshold) | Baseline B (Pure Regression) | Proposed (AI Scheduler) |
-| :--- | :---: | :---: | :---: |
-| **Routing Decision Accuracy** | 68.2% | 76.4% | **99.4%** |
-| **Precision (Cloud Offload)** | 52.1% | 68.3% | **97.6%** |
-| **Recall (Cloud Offload)** | 84.5% | 79.1% | **98.4%** |
-| **$F_1$-Score** | 0.644 | 0.733 | **0.980** |
-| **False Cloud Offloading Rate** | 31.8% | 23.6% | **0.6%** |
-| **Average Decision Overhead** | 0.12 ms | 3.40 ms | **3.85 ms** |
-| **Mean Task Turnaround Reduction** | -12.4% (Degradation) | +18.2% | **+44.7%** |
-
-*Table 2: Performance comparison of the proposed framework against baseline offloading strategies.*
-
-**Inference:** Baseline A severely degrades performance due to frequent false cloud offloading of lightweight loops that run slower over WAN. Baseline B improves accuracy but suffers from compound regression error near the RTT boundary threshold. The proposed dual-engine architecture achieves 99.4% accuracy, reducing false offloading to 0.6% and generating a 44.7% net reduction in average turnaround time.
-
----
-
-### 5.2 Latency Crossover Boundary Analysis
-Figure 2 illustrates the latency crossover curve between local edge execution and cloud execution compounded with 130 ms WAN network RTT.
-
-```
-Execution
-Time (s)
-   ^
-5.0|                                                   /  Local Edge Compute Curve
-   |                                                  /   (T_edge)
-4.0|                                                 /
-   |                                                /
-3.0|                                               /  <-- CROSSOVER POINT
-   |                                              /       (Load ~ 1,450)
-2.0|                                             /
-   |                               ..-----------*------------ AWS EC2 + 130ms RTT
-1.0|               ..-------------''           /              (T_cloud + tau_RTT)
-   |  .------------''                         /
-0.0+-----------------------------------------+----------------------------------->
-   0              600          1200         1800         2400         3000
-                                 Workload Computational Load (Matrix Dim / Iterations)
-```
-*Figure 2: Empirical latency crossover curve illustrating the dynamic offloading threshold.*
-
-- **Below 1,450 Load Units:** Local edge execution duration is lower than the 130 ms network transit penalty; edge routing is optimal.
-- **Above 1,450 Load Units:** Compute acceleration on AWS EC2 outpaces WAN transit delay, yielding exponential time savings.
-
----
-
-### 5.3 System Implementation & Use Case Screenshots
-
-The following empirical screenshots illustrate key operational modules and use cases within the deployed system:
-
-#### Use Case 1: AWS EC2 Inbound Network Infrastructure Configuration
-To enable direct low-latency REST execution from the edge controller, an AWS EC2 instance (`t3.micro`) was configured with custom security group rules routing port 8000 alongside administrative SSH access on port 22, as shown in Figure 3.
-
-![Figure 3: AWS EC2 Security Group Configuration for Port 8000 REST Worker](file:///Users/adithyabinojnair/.gemini/antigravity-ide/brain/8de2e404-ba7d-46be-957a-205babe342ae/.user_uploaded/media_1791284704327.png)  
-*Figure 3: AWS EC2 Security Group Inbound Configuration enabling execution payloads across Custom TCP Port 8000.*
-
----
-
-#### Use Case 2: Live Dispatch Execution of Lightweight Payloads (Edge Routing Verification)
-When submitting string operations or small iterative algorithms, the static AST analyzer identifies sub-polynomial complexity. The scheduler correctly routes the task to the Local Edge Worker, avoiding the 130 ms network latency penalty and capturing runtime execution telemetry, as depicted in Figure 4.
-
-![Figure 4: Workload Dispatch Execution and Telemetry Capture](file:///Users/adithyabinojnair/.gemini/antigravity-ide/brain/8de2e404-ba7d-46be-957a-205babe342ae/.user_uploaded/media_1791300168971.png)  
-*Figure 4: Live dispatch interface displaying single payload execution, predicted edge and cloud latencies, routing decision, and runtime output capture.*
-
----
-
-#### Use Case 3: Production Master Dashboard & Fabric Topology Monitor
-Figure 5 displays the unified master orchestrator interface, showcasing the dark agency aesthetic, real-time node connectivity status (`EC2_PUBLIC_IP` and `localhost:8000`), and zero-emoji developer presentation.
-
-![Figure 5: Master Orchestrator Architecture and Landing Interface](file:///Users/adithyabinojnair/.gemini/antigravity-ide/brain/8de2e404-ba7d-46be-957a-205babe342ae/.user_uploaded/media_1791303337852.png)  
-*Figure 5: Master Orchestrator landing page displaying hybrid cloud-edge fabric topology, active node endpoints, and operational status.*
+* **No hardware asymmetry in the data** (above). This is the dominant limitation.
+* **Template-generated workloads.** Holding out families reduces leakage, but the families are still one author's templates; the 16-script holdout is small and has no cloud measurements.
+* **Static-analysis blind spots.** Data-dependent loop bounds, `exec`/`eval`, I/O and library calls with input-dependent cost are invisible to the analyser. History and retraining from the log are mitigations, not a proof of coverage.
+* **Single run conditions.** RTT was measured to a single region; network jitter, cold starts and CPU contention on a shared instance are only modelled through the EWMA and the queue heuristic.
+* **Confidence is approximate.** It assumes normal, homoscedastic log-errors.
+* **Security.** The worker is hardened, not sandboxed. The first draft's EC2 address and security-group identifiers appeared in the repository history; the address has been redacted in the current tree but remains in earlier commits, so the instance should be rotated or locked down.
+* **Terraform** in `deploy/terraform` encodes the intended network posture but has not been applied or validated with a Terraform binary.
 
 ---
 
 ## 6. Conclusion
 
-In this paper, we presented **AI Scheduler**, an intelligent, distributed cloud-edge workload orchestration framework designed to eliminate the False Offloading Dilemma in heterogeneous environments. By coupling pre-execution **Abstract Syntax Tree (AST)** structural complexity profiling with active **Wide Area Network (WAN) latency compensation**, the platform models computational requirements in under 12 ms without executing untrusted code. 
+We built and audited an execution-free scheduler for Python jobs. Static AST cost features and gradient-boosted regressors trained only on measured runtimes predict edge and cloud time to R² of 0.91 and 0.89 with whole script families held out, and a single transparent inequality over those predictions, a live RTT estimate and a queue penalty makes the routing decision. The surrounding system (authenticated, limited workers; fallback and circuit breaking; runtime history; a decision log that feeds retraining) is tested end to end.
 
-Our dual-engine machine learning design combines a Random Forest classification model with log-scaled gradient boosting regressors, resolving compound regression errors and achieving a **99.4% routing decision accuracy** and a regression fit of **$R^2 = 0.972$** across 503 empirical benchmarks. Real-world validation against an active AWS EC2 instance demonstrated a 44.7% net reduction in average task turnaround time compared to standard offloading heuristics.
+The main finding is a negative one. On 495 measured scripts the cloud wins once, so the scheduler ends within 3.1% of always-edge and cannot be shown to improve on it, while the original design's headline numbers (99.4% accuracy, 41.8% latency reduction) came from synthetic labels and leaky evaluation and were in fact a 35.6% slowdown. Whether the approach delivers a real benefit depends on running it where the cloud node is substantively faster than the edge, and the repository now contains the tooling, protocol and baselines to do exactly that.
 
-**Future Work:** Future extensions will investigate multi-cloud spot-instance arbitration, containerized Docker payload migration, and deep neural graph embeddings (e.g., Graph Neural Networks on AST control-flow graphs) to profile distributed GPU-accelerated workloads.
+**Future work.** Run the asymmetric-hardware experiment; evaluate the full scheduler on unseen workloads with two-node measurements; extend the analyser to infer bounds from `len()` and simple data flow; calibrate the confidence on logged outcomes; and consider migrating packages or containers rather than single scripts.
 
 ---
 
