@@ -93,6 +93,9 @@ class TestAppSmoke(unittest.TestCase):
         saved = {k: sys.modules.get(k) for k in ("streamlit", "plotly", "plotly.graph_objects")}
         pkg, go = fake_plotly()
         sys.modules.update({"streamlit": fake_streamlit(tab, calls), "plotly": pkg, "plotly.graph_objects": go})
+        # ui.* modules bind `st` at import time: drop them so each run sees this fake.
+        for m in [m for m in sys.modules if m == "ui" or m.startswith("ui.")]:
+            del sys.modules[m]
         try:
             runpy.run_path(os.path.join(ROOT, "app.py"), run_name="__app__")
         finally:

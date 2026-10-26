@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 [tool.ruff]
 line-length = 120
 target-version = "py312"
-extend-exclude = ["test_scripts", "build_journal_docx.py", "generate_diverse_scripts.py", "app.py", "landing-page"]
+extend-exclude = ["test_scripts", "build_journal_docx.py", "generate_diverse_scripts.py", "landing-page"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B"]
