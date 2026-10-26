@@ -149,7 +149,7 @@ class TestAppSmoke(unittest.TestCase):
                 execute_workload(ctx, "print(7)", "t.py", disp)
                 self.assertEqual(len(log.read()), 1)
             html = "\n".join(c for c in calls if isinstance(c, str))
-            self.assertIn("Ran on the local edge worker", html)
+            self.assertIn("Dispatched to Local Edge Worker", html)
         finally:
             for k, v in saved.items():
                 if v is None:
