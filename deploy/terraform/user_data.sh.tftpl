@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export WORKER_API_KEY='${api_key}'
+export REPO_URL='${repo}'
+export BRANCH='${branch}'
+apt-get update -y && apt-get install -y git curl
+git clone --depth 1 --branch "$BRANCH" "$REPO_URL" /opt/ai-scheduler-aws
+# ec2_setup.sh uses sudo and a home-relative clone; run it as the default user.
+install -m 0755 /opt/ai-scheduler-aws/deploy/ec2_setup.sh /home/ubuntu/ec2_setup.sh
+chown ubuntu:ubuntu /home/ubuntu/ec2_setup.sh
+sudo -u ubuntu --preserve-env=WORKER_API_KEY,REPO_URL,BRANCH bash /home/ubuntu/ec2_setup.sh

@@ -71,3 +71,27 @@ To learn from live use, run the dispatcher (`pipeline/dispatcher.py`) with a
 `DecisionLog`, then `python3 train_model.py --log logs/decisions.jsonl`.
 `Dispatcher(epsilon=0.05)` explores the other side on low-confidence jobs so the
 log contains outcomes for both nodes.
+
+## 5. Terraform (optional)
+
+`deploy/terraform/` creates the worker with the settings that matter: a security
+group open on 8000 to **one CIDR only** (`allowed_cidr` has no default and
+rejects `0.0.0.0/0`), no SSH unless you pass `key_name`, egress limited to
+HTTPS/DNS, IMDSv2 required with hop limit 1, **no instance role**, an encrypted
+root volume, and user-data that runs `deploy/ec2_setup.sh` (the hardened
+container).
+
+```bash
+cd deploy/terraform
+cp terraform.tfvars.example terraform.tfvars   # edit: your IP, a 32+ char key, repo URL
+terraform init && terraform apply
+# then put the printed cloud_worker_url and the same key into .env
+```
+
+Status: this config has **not** been run through `terraform validate` or
+applied (no Terraform binary was available where it was written). The static
+guards in `tests/test_terraform.py` pin the security posture, but run
+`terraform validate && terraform plan` before trusting it. The API key lands in
+Terraform state and instance user-data: keep state private (a remote encrypted
+backend) and rotate the key if either leaks. Traffic on 8000 is plain HTTP; put
+TLS in front before sending anything you would not want read on the wire.

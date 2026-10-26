@@ -1,0 +1,4 @@
+# cp terraform.tfvars.example terraform.tfvars   (terraform.tfvars is gitignored)
+allowed_cidr   = "203.0.113.7/32" # your public IP: curl -s https://checkip.amazonaws.com
+worker_api_key = "replace-with-32+-random-chars"
+repo_url       = "https://github.com/Adithya-109/ai-scheduler-aws.git"
