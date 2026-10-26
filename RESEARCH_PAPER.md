@@ -12,7 +12,7 @@
 
 Offloading a job from a local "edge" machine to a cloud instance only pays off when the compute time saved exceeds the network cost of sending it. We study a scheduler for Python scripts that makes this decision *before* running anything: it parses the source into an abstract syntax tree (AST), estimates the work the program will do, predicts runtime on both nodes with gradient-boosted regressors trained only on measured timings, adds a live round-trip-time (RTT) estimate and a queue penalty, and routes the job to whichever side is predicted to finish first. A hardened HTTP worker, a dispatcher with cloud-to-edge fallback and a circuit breaker, a decision log, and a retraining loop that learns from that log complete the system.
 
-On 495 scripts with measured edge and cloud times, and with whole script families held out of training, the latency models reach R² = 0.91 (edge) and 0.89 (cloud) on log-runtime, with median absolute errors of 15% and 3%. On the same data the cloud was faster than the edge, once the 110 ms RTT is paid, for **1 of 495** scripts. The two nodes in the dataset are similar machines, so there is almost nothing to schedule: the scheduler's total time is within 3.1% of always running locally (109.3 s vs 106.0 s; oracle 105.9 s), and it cannot be shown to beat that baseline on this data. An earlier pipeline that used a classifier trained on synthetic labels sent 158 scripts to the cloud and was 35.6% *slower* than always-edge on the same scripts. On 16 hand-written scripts the generator never produced, the static complexity estimate has a Spearman rank correlation of 0.43 with measured runtime, which is useful but weak. We report these results as they are and describe the experiment (a real hardware asymmetry) that would test the claim the system is built for.
+On 495 scripts with measured edge and cloud times, and with whole script families held out of training, the latency models reach R² = 0.91 (edge) and 0.89 (cloud) on log-runtime, with median absolute errors of 15% and 3%. On the same data the cloud was faster than the edge, once the 110 ms RTT is paid, for **1 of 495** scripts. The two nodes in the dataset are similar machines, so there is almost nothing to schedule: the scheduler's total time is within 3.1% of always running locally (109.3 s vs 106.0 s; oracle 105.9 s), and it cannot be shown to beat that baseline on this data. An earlier pipeline that used a classifier trained on synthetic labels sent 158 scripts to the cloud and was 35.6% *slower* than always-edge on the same scripts. On 16 hand-written scripts the generator never produced, the static complexity estimate has a Spearman rank correlation of 0.39 with measured runtime, which is useful but weak. We then create the missing asymmetry: with one worker limited to 0.5 CPU and another to 4 CPUs, both in containers on one machine and a simulated 110 ms network delay, the cloud wins on 61 of 591 scripts and the scheduler finishes the workload 6.9% faster than always-edge (254.8 s vs 273.7 s; 95% bootstrap interval −10.8% to −3.8% resampling scripts, −18.5% to −1.8% resampling script families; oracle 237.8 s). This is a controlled compute asymmetry, not a measurement on EC2.
 
 **Keywords:** computation offloading, edge-cloud scheduling, static analysis, abstract syntax tree, latency prediction, gradient boosting, out-of-fold evaluation.
 
@@ -30,7 +30,7 @@ Contributions:
 2. **A decision rule with no learned veto.** Two regressors predict log-runtime on each node from measured data only; the route follows from the inequality in Section 3.1, and the confidence reported is the probability, under the models' measured error, that the chosen side really is faster.
 3. **A deployable execution layer**: authenticated, resource-limited workers, a dispatcher with fallback and circuit breaker, live RTT, queue-aware routing, runtime history, and a JSON-lines decision log from which the models are retrained (Section 3.4).
 4. **An evaluation designed to be hard to fool**: out-of-fold predictions with whole script families held out, scored by the *total wall-clock time* of each policy on real measurements against the oracle, always-edge and always-cloud baselines, plus an unseen-workload holdout (Section 4).
-5. **A negative result and an audit.** With the available data the scheduler does not beat always-edge, and the original headline numbers were artefacts (Section 4.6).
+5. **A negative result, an audit, and a controlled test.** On the original data the scheduler does not beat always-edge, and the original headline numbers were artefacts (Section 4.6); with a deliberately created compute asymmetry it does (Section 4.8).
 
 Section 2 surveys related work; Section 3 describes the method; Section 4 gives results; Section 5 discusses performance and limits; Section 6 concludes.
 
@@ -149,7 +149,7 @@ No script flips from edge to cloud as RTT rises. Binning scripts by estimated co
 
 To test the extractor on code it was not developed against, 16 scripts were written by hand (`holdout/`): a sieve, Collatz, trial-division primes, an LCS dynamic program, recursive Fibonacci, dictionary and string workloads, NumPy matrix multiply, elementwise and inverse, a large sort, a busy-wait, and a trivial `print`. Each was run three times locally (median reported, `bench/holdout.py`).
 
-The Spearman rank correlation between `estimated_complexity` and measured runtime is **0.43** ($n=16$). This is a weak positive relation, not a good predictor, and a sample of 16 gives a wide interval. The misses are informative: loop bounds derived from `len()` of constructed strings (the LCS program) and `while` loops with a non-constant bound (trial division) fall back to the default guesses and are underestimated; NumPy workloads carry a fixed interpreter-plus-import cost of about 0.1 s that has nothing to do with problem size. The regressors, not this raw feature, drive routing, and the history mechanism (Section 3.4) exists for exactly these programs; but the held-out check of the full scheduler on unseen scripts requires real two-node measurements and has not been done.
+The Spearman rank correlation between `estimated_complexity` and measured runtime is **0.39** ($n=16$; 0.43 in the first run, the difference is timing noise on a shared machine plus a corrected NumPy size rule). This is a weak positive relation, not a good predictor, and a sample of 16 gives a wide interval. The misses are informative: loop bounds derived from `len()` of constructed strings (the LCS program) and `while` loops with a non-constant bound (trial division) fall back to the default guesses and are underestimated; NumPy workloads carry a fixed interpreter-plus-import cost of about 0.1 s that has nothing to do with problem size. The regressors, not this raw feature, drive routing, and the history mechanism (Section 3.4) exists for exactly these programs; but the held-out check of the full scheduler on unseen scripts requires real two-node measurements and has not been done.
 
 ### 4.6 Audit of the original results
 
@@ -174,27 +174,48 @@ The corrected pipeline routes 2 scripts to the cloud and takes 109.3 s (+3.1%). 
 
 The first draft claimed extraction "in under 12 ms"; it is about 0.6 ms. A concurrency test against a local worker over real sockets (40 requests, 2 CPUs) completes 14, 26 and 27 requests at 1, 2 and 4 slots and returns HTTP 503 for the rest instead of queueing without bound. The FastAPI front end could not be installed in the audit environment; the same wire contract is exercised through a stdlib server around the identical runner code, and the repository's test suite passes.
 
+### 4.8 Controlled asymmetry experiment
+
+The original 495 timings come from two similar machines, so they cannot show a benefit. To test the scheduler where a benefit is possible we ran two workers on one machine (an Apple-silicon laptop running Docker Desktop): an **edge** worker limited to 0.5 CPU (one BLAS thread) and a **cloud** worker limited to 4 CPUs (four BLAS threads), each running one job at a time through the same hardened worker code. Every one of the 591 scripts in `test_scripts/` was timed three times on each worker (median kept; `scripts/run_asymmetric_experiment.sh`, data in `data/docker_asym_v1/`). The measured round trip between the containers was 3.6 ms; scoring uses a **simulated 110 ms** WAN delay, the value measured to EC2 earlier. Evaluation follows Section 4.2 (5-fold, whole families held out, 21 families).
+
+| Policy | Total (s) | vs always-edge |
+| --- | ---: | ---: |
+| Oracle | 237.8 | −13.1% |
+| **Scheduler** | **254.8** | **−6.9%** |
+| Always edge | 273.7 | baseline |
+| Always cloud | 291.1 | +6.4% |
+
+* The cloud worker is faster than the edge even after the 110 ms delay on **61 of 591** scripts; the scheduler sent 43 scripts to the cloud: 32 were correct calls (19.7 s saved), 11 were mistakes (0.9 s lost), and it missed the other 29 cloud-favourable scripts. Ten scripts account for 68% of the movement.
+* Latency models: R² = 0.924 (edge) and 0.941 (cloud) on log₁₀ runtime with families held out; median absolute error 4.4% (edge) and 2.4% (cloud).
+* Uncertainty: 2000 bootstrap resamples give a 95% interval of [−10.8%, −3.8%] for the scheduler versus always-edge when scripts are resampled and [−18.5%, −1.8%] when whole families are resampled. Both exclude zero. They do not capture run-to-run measurement noise (the experiment was run once) or different CPU limits.
+* Ten generated "ten-second" scripts take 10.0 s on both workers (100 s of the 273.7 s) and cannot be influenced by routing, so the scheduler affects about 173 s of the total: it recovers 19 s of the 36 s that the oracle could.
+
+What this does and does not show. It shows that, given a real difference in compute, the pipeline (static features, regressors trained on measured times, the single inequality of Section 3.1) finds most of the available gain and avoids the penalty of always offloading. It does not show a gain on EC2: the asymmetry was chosen by us, the two workers share one machine and memory system, and the network delay is a constant rather than a measured, variable link.
+
 ---
 
 ## 5. Performance, limits and what remains
 
 ### 5.1 Comparison with the baselines
 
-On the data available, the ranking is oracle ≈ always-edge < scheduler < always-cloud. The scheduler's value on this data is that it **avoids the 72.6% penalty of always-cloud** and the 35.6% penalty of the original design while staying within 3.1% of the best fixed policy. It does not demonstrate a gain over running locally.
+On the original data the ranking is oracle ≈ always-edge < scheduler < always-cloud: the scheduler avoids the 72.6% penalty of always-cloud and the 35.6% penalty of the original design while staying within 3.1% of the best fixed policy, but shows no gain over running locally. On the controlled-asymmetry data (Section 4.8) the ranking is oracle < scheduler < always-edge < always-cloud, with the scheduler 6.9% ahead of always-edge. The difference between the two is the data, not the method: the first set has one cloud-favourable script, the second has 61.
 
 ### 5.2 Where offloading would pay
 
 For a job with edge time $t_E$ and cloud time $t_C$, offloading helps when $t_E - t_C > r + b/B$. At $r=110$ ms the cloud must save more than 110 ms of compute, so no job faster than about 0.1 s on the edge can ever benefit. In the dataset the heaviest jobs take about the same time on both nodes (maxima of about 10 s each), so even among long jobs the cloud saves almost nothing; only one script clears the bar. A cloud node with several times the edge's compute (more cores for BLAS, a faster CPU) would pull the break-even down towards jobs of a few hundred milliseconds. This is a prediction of the model, to be tested, not a measured result.
 
-### 5.3 Experiment needed to test the claim
+### 5.3 Remaining experiment
 
-1. Make the nodes genuinely different (`docs/DEPLOY.md`: for example a throttled local worker versus a multi-core instance).
-2. Re-collect with `collect_data.py` (repeated runs, spread and failures recorded, hardware metadata stored), retrain with `train_model.py --probe`, and re-run `bench/run_benchmarks.py`.
-3. Report scheduler vs always-edge, always-cloud and oracle with families held out, as in Section 4.2.
+Section 4.8 supplies a controlled test; the claim the system is built for still needs a real one.
+
+1. Repeat the container experiment two or three times (and with other CPU limits) to measure run-to-run variation, which the bootstrap interval does not cover.
+2. Add the heavier multi-core workloads written for this purpose (`generate_heavy_scripts.py`: dense linear algebra, FFT, large element-wise NumPy, and single-threaded loops as a control) and merge them into the dataset (`scripts/merge_datasets.py`). Only 10% of scripts currently favour the cloud, mostly because most jobs finish in milliseconds.
+3. Measure against a real remote instance (`deploy/terraform`, `collect_data.py`, `train_model.py --probe`) so that the delay is a measured, variable link and the hardware is not shared.
 
 ### 5.4 Limitations and threats to validity
 
-* **No hardware asymmetry in the data** (above). This is the dominant limitation.
+* **Asymmetry is chosen, not found.** The original data has none; the controlled experiment (Section 4.8) creates one with CPU limits on a single machine and a constant simulated delay. It supports the method, not a claim about EC2 or any particular deployment.
+* **One run.** The 6.9% figure comes from one collection (3 repeats per script); the intervals reflect script sampling only.
 * **Template-generated workloads.** Holding out families reduces leakage, but the families are still one author's templates; the 16-script holdout is small and has no cloud measurements.
 * **Static-analysis blind spots.** Data-dependent loop bounds, `exec`/`eval`, I/O and library calls with input-dependent cost are invisible to the analyser. History and retraining from the log are mitigations, not a proof of coverage.
 * **Single run conditions.** RTT was measured to a single region; network jitter, cold starts and CPU contention on a shared instance are only modelled through the EWMA and the queue heuristic.
@@ -208,9 +229,9 @@ For a job with edge time $t_E$ and cloud time $t_C$, offloading helps when $t_E 
 
 We built and audited an execution-free scheduler for Python jobs. Static AST cost features and gradient-boosted regressors trained only on measured runtimes predict edge and cloud time to R² of 0.91 and 0.89 with whole script families held out, and a single transparent inequality over those predictions, a live RTT estimate and a queue penalty makes the routing decision. The surrounding system (authenticated, limited workers; fallback and circuit breaking; runtime history; a decision log that feeds retraining) is tested end to end.
 
-The main finding is a negative one. On 495 measured scripts the cloud wins once, so the scheduler ends within 3.1% of always-edge and cannot be shown to improve on it, while the original design's headline numbers (99.4% accuracy, 41.8% latency reduction) came from synthetic labels and leaky evaluation and were in fact a 35.6% slowdown. Whether the approach delivers a real benefit depends on running it where the cloud node is substantively faster than the edge, and the repository now contains the tooling, protocol and baselines to do exactly that.
+The findings are mixed, and we report both. On 495 measured scripts from two similar machines the cloud wins once, so the scheduler ends within 3.1% of always-edge and cannot be shown to improve on it; the original design's headline numbers (99.4% accuracy, 41.8% latency reduction) came from synthetic labels and leaky evaluation and were in fact a 35.6% slowdown. When a compute asymmetry is created (a 0.5-CPU edge against a 4-CPU cloud worker, simulated 110 ms delay), the same pipeline finishes 591 scripts 6.9% faster than always-edge (95% interval −10.8% to −3.8%) and recovers about half of the oracle's gain. Whether that carries over to a real cloud link is the open question, and the repository contains the tooling and protocol to answer it.
 
-**Future work.** Run the asymmetric-hardware experiment; evaluate the full scheduler on unseen workloads with two-node measurements; extend the analyser to infer bounds from `len()` and simple data flow; calibrate the confidence on logged outcomes; and consider migrating packages or containers rather than single scripts.
+**Future work.** Repeat the container experiment and add the heavy multi-core workloads; measure against a real remote instance; evaluate the full scheduler on unseen workloads with two-node measurements; extend the analyser to infer bounds from `len()` and simple data flow; calibrate the confidence on logged outcomes; and consider migrating packages or containers rather than single scripts.
 
 ---
 

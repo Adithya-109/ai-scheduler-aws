@@ -20,6 +20,11 @@ Everything below is reproduced by `bench/run_benchmarks.py` (full table in
 * Total wall-clock time over those scripts, whole script families held out:
   always-edge 106 s, **scheduler 109 s (+3.1%)**,
   always-cloud 183 s (+73%), oracle 106 s.
+* **With a real compute asymmetry** (Docker: edge worker `--cpus=0.5`, cloud worker `--cpus=4`, same machine, simulated
+  110 ms delay; 591 scripts, [`data/docker_asym_v1`](data/docker_asym_v1), report in
+  [`bench/ASYM_RESULTS.md`](bench/ASYM_RESULTS.md)): the cloud wins on 61 scripts and the **scheduler is 6.9% faster than
+  always-edge** (254.8 s vs 273.7 s; oracle 237.8 s; 95% bootstrap interval -10.8% to -3.8%, resampling scripts). One run,
+  simulated network: not an EC2 measurement. Models: `models/asym/` (`SCHEDULER_MODELS_DIR=models/asym`).
 * The first version of this project (classifier trained on a synthetic "edge slowdown" label) would have made the same
   workload +36% slower than always-edge; it reported "99.4% accuracy" because it
   re-learned its own label formula. The classifier is gone and nothing is trained on synthetic labels.
@@ -114,7 +119,7 @@ python3 collect_data.py --repeats 5               # re-measure on real hardware 
 * The migrated timings come from two similar machines; see Status. The scheduler cannot be shown to help until that changes.
 * `RESEARCH_PAPER.md` / the `.docx` now report the measured results. The literature survey and references are carried over
   from the first draft and were not re-verified; check them before submission.
-* The static estimate generalises only moderately: Spearman 0.43 against measured runtime on 16 unseen scripts
+* The static estimate generalises only moderately: Spearman 0.39 against measured runtime on 16 unseen scripts
   (`bench/holdout.py`). Loop bounds from `len()` and non-constant `while` bounds are the main misses.
 * The Streamlit UI has only been exercised through the fake-Streamlit smoke test, not a live browser session.
 * The worker HTTP layer (FastAPI) is covered by an equivalent stdlib server in the tests, not by FastAPI itself.
