@@ -1,29 +1,9 @@
-const textToType = "Routing dynamic payloads across the WAN since 2026. Defeating latency one AST tree at a time.";
-const typingElement = document.getElementById('typing-text');
-let i = 0;
-
-function typeWriter() {
-    if (i < textToType.length) {
-        typingElement.innerHTML += textToType.charAt(i);
-        i++;
-        setTimeout(typeWriter, 50);
-    }
-}
-
-// Start typing effect after a short delay
-setTimeout(typeWriter, 1000);
-
-// Theme Toggle Logic
+// Theme toggle. Light is the default (matches data-theme in index.html).
 const themeToggle = document.getElementById('theme-toggle');
-let isLightMode = true;  // light is the default (matches data-theme in index.html)
+let isLightMode = true;
 
 themeToggle.addEventListener('click', () => {
     isLightMode = !isLightMode;
-    if (isLightMode) {
-        document.documentElement.setAttribute('data-theme', 'light');
-        themeToggle.innerHTML = '🌙 DARK_MODE';
-    } else {
-        document.documentElement.removeAttribute('data-theme');
-        themeToggle.innerHTML = '☀️ LIGHT_MODE';
-    }
+    document.documentElement.setAttribute('data-theme', isLightMode ? 'light' : 'dark');
+    themeToggle.textContent = isLightMode ? 'Dark mode' : 'Light mode';
 });

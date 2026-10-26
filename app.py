@@ -59,7 +59,7 @@ STAT = get_summary()
 SCHED_VS_EDGE = reporting.fmt_pct(STAT["sched_vs_edge_pct"])
 CLOUD_HOST = config.CLOUD_WORKER_URL.split("//")[-1].split("/")[0] if config.CLOUD_WORKER_URL else "not configured"
 
-st.set_page_config(page_title="AI SCHEDULER", page_icon=None, layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="AI Scheduler", page_icon=None, layout="wide", initial_sidebar_state="collapsed")
 
 for _k, _v in (("current_tab", "playground"), ("theme_mode", "light"), ("code_preset", "heavy"),
                ("sim_cloud_rtt", int(STAT["rtt_ms"])), ("last_result", None)):
@@ -80,12 +80,11 @@ st.sidebar.markdown(
         background-color: var(--accent-amber-hover);
         color: white;
         text-align: center;
-        font-family: 'Press Start 2P', cursive;
-        font-size: 10px;
-        border: 4px solid var(--border-color);
+        font-size: 14px;
+        font-weight: 600;
+        border-radius: 8px;
         text-decoration: none;
-        box-shadow: 4px 4px 0px var(--bg-canvas);
-    ">⬅️ LANDING PAGE</a>
+    ">← Back to landing page</a>
     ''', unsafe_allow_html=True
 )
 
@@ -116,15 +115,12 @@ st.markdown(
     f"""
     <div class="dev-footer">
         <div>
-            <b style="color: var(--text-pure);">AI SCHEDULER</b>
-            &nbsp;·&nbsp; Cloud & Edge Hybrid Computing Engine &nbsp;·&nbsp; VIT CAD Project
+            <b style="color: var(--text-pure);">AI Scheduler</b>
+            &nbsp;·&nbsp; Hybrid edge and cloud job scheduler &nbsp;·&nbsp; VIT CAD project
         </div>
         <div style="display: flex; gap: 20px; align-items: center;">
             <span>Edge: localhost:8000</span>
             <span>Cloud: {CLOUD_HOST}</span>
-            <span style="color: #10B981; display: inline-flex; align-items: center; gap: 5px;">
-                <span class="pulse-dot"></span> Online
-            </span>
         </div>
     </div>
     """,
