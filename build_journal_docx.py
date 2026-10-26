@@ -494,7 +494,7 @@ def create_document():
         bold_prefix="• Dual-Engine Machine Learning Architecture: "
     )
     add_bullet(
-        "A fully functional distributed fabric deployed across local edge clients and an AWS EC2 instance running in ap-south-2 (Ubuntu 22.04 LTS, IP: 18.60.41.230), backed by a modern, high-performance visual dashboard.",
+        "A fully functional distributed fabric deployed across local edge clients and an AWS EC2 instance running in ap-south-2 (Ubuntu 22.04 LTS, IP: EC2_PUBLIC_IP), backed by a modern, high-performance visual dashboard.",
         bold_prefix="• Production-Grade Distributed Testbed: "
     )
     
@@ -618,7 +618,7 @@ def create_document():
         "                                          v (HTTP REST / 0ms)                        v (WAN REST / ~130ms)",
         "                    +------------------------------------+     +------------------------------------+    ",
         "                    |       LOCAL EDGE WORKER NODE       |     |        AWS EC2 CLOUD NODE          |    ",
-        "                    |       (localhost:8000/execute)     |     |     (18.60.41.230:8000/execute)    |    ",
+        "                    |       (localhost:8000/execute)     |     |     (EC2_PUBLIC_IP:8000/execute)    |    ",
         "                    |                                    |     |                                    |    ",
         "                    |  - Lightweight CPU Core            |     |  - High-Throughput Cloud vCPU      |    ",
         "                    |  - Zero Network Transit Penalty    |     |  - NumPy / PyTorch BLAS Cores      |    ",
@@ -814,7 +814,7 @@ def create_document():
     add_sec_heading("3.6 Module 4: Autonomous REST-Based Distributed Dispatcher & Telemetry Capture Engine", level=2)
     add_p(
         "Module 4 handles communication and telemetry. Once the decision is reached, the payload is packaged into an asynchronous JSON payload "
-        "{\"code\": S} and dispatched via HTTP POST to the chosen node endpoint (http://localhost:8000/execute or http://18.60.41.230:8000/execute). "
+        "{\"code\": S} and dispatched via HTTP POST to the chosen node endpoint (http://localhost:8000/execute or http://EC2_PUBLIC_IP:8000/execute). "
         "The worker executes the script in an isolated subprocess, captures standard output (stdout), standard error (stderr), and CPU execution duration, "
         "returning telemetry to the master controller to validate prediction accuracy in real time.",
         bold_prefix="Explanation: "
@@ -859,7 +859,7 @@ def create_document():
     add_sec_heading("4.1 Dataset Description", level=2)
     add_p(
         "To train and validate the predictive models across realistic computational regimes, we synthesized and benchmarked 503 unique Python scripts (hardware_benchmark.csv). "
-        "Each script was executed natively on both the local edge machine and the remote AWS EC2 instance (t3.micro, Ubuntu 22.04 LTS, IP: 18.60.41.230). "
+        "Each script was executed natively on both the local edge machine and the remote AWS EC2 instance (t3.micro, Ubuntu 22.04 LTS, IP: EC2_PUBLIC_IP). "
         "The distribution of workloads is summarized in Table 1."
     )
     
@@ -913,7 +913,7 @@ def create_document():
     add_sec_heading("4.5 Module 4 Inferences: Live Dispatch & Telemetry Verification", level=2)
     add_p(
         "Inference 4: The distributed REST fabric achieved 100% execution reliability over 300 automated live dispatches. Edge execution dispatches via localhost:8000 completed with an average serialization "
-        "and HTTP overhead under 4.2 ms. Cloud dispatches to AWS EC2 (18.60.41.230:8000) incurred a mean wire transit time of 134.1 ms, matching the calibrated WAN probe tau_RTT within 2.1%. "
+        "and HTTP overhead under 4.2 ms. Cloud dispatches to AWS EC2 (EC2_PUBLIC_IP:8000) incurred a mean wire transit time of 134.1 ms, matching the calibrated WAN probe tau_RTT within 2.1%. "
         "No memory leaks or zombie subprocesses occurred across continuous 8-hour execution bursts."
     )
 
@@ -985,7 +985,7 @@ def create_document():
     add_sec_heading("Use Case 1: AWS EC2 Inbound Network Infrastructure Configuration", level=3)
     add_p(
         "Figure 2 illustrates the production AWS EC2 Cloud Security Group configuration (sg-0dc4c382103565c0c) deployed in ap-south-2. "
-        "Port 8000 is authorized for Custom TCP inbound traffic (0.0.0.0/0), enabling the remote FastAPI worker (hosted on 18.60.41.230) "
+        "Port 8000 is authorized for Custom TCP inbound traffic (0.0.0.0/0), enabling the remote FastAPI worker (hosted on EC2_PUBLIC_IP) "
         "to securely accept distributed script offloading payloads. Sub-millisecond route table configurations ensure predictable WAN packet arrival."
     )
     img1 = "/Users/adithyabinojnair/.gemini/antigravity-ide/brain/8de2e404-ba7d-46be-957a-205babe342ae/.user_uploaded/media_1791284704327.png"
@@ -1005,7 +1005,7 @@ def create_document():
     add_sec_heading("Use Case 3: Production Master Dashboard & Fabric Topology Monitor", level=3)
     add_p(
         "Figure 4 showcases the AI Scheduler master dashboard interface. The top cluster health bar provides real-time status indicators for both the Local Edge Worker "
-        "(Online at localhost:8000) and the AWS Cloud Worker (Online at 18.60.41.230:8000 with 131 ms active RTT). "
+        "(Online at localhost:8000) and the AWS Cloud Worker (Online at EC2_PUBLIC_IP:8000 with 131 ms active RTT). "
         "The interface allows operators to test code payloads, inspect AST features, review dual-engine confidence metrics, and inspect live stdout logs."
     )
     img3 = "/Users/adithyabinojnair/.gemini/antigravity-ide/brain/8de2e404-ba7d-46be-957a-205babe342ae/.user_uploaded/media_1791303337852.png"

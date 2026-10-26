@@ -107,7 +107,7 @@ The overall distributed system architecture consists of three interconnected tie
                                           v (HTTP REST / 0ms)                        v (WAN REST / ~130ms)
                     +------------------------------------+     +------------------------------------+
                     |       LOCAL EDGE WORKER NODE       |     |        AWS EC2 CLOUD NODE          |
-                    |       (localhost:8000/execute)     |     |     (18.60.41.230:8000/execute)    |
+                    |       (localhost:8000/execute)     |     |     (EC2_PUBLIC_IP:8000/execute)    |
                     |                                    |     |                                    |
                     |  - Lightweight CPU Core            |     |  - High-Throughput Cloud vCPU      |
                     |  - Zero Network Transit Penalty    |     |  - NumPy / PyTorch BLAS Cores      |
@@ -305,7 +305,7 @@ Output: Decision D in {EDGE, CLOUD}, Confidence C, Latencies {T_edge, T_cloud}
 
 ### 3.6 Module 4: Autonomous REST-Based Distributed Dispatcher & Telemetry Capture Engine
 #### Explanation:
-Module 4 handles communication and telemetry. Once the decision is reached, the payload is packaged into an asynchronous JSON payload `{"code": S}` and dispatched via HTTP POST to the chosen node endpoint (`http://localhost:8000/execute` or `http://18.60.41.230:8000/execute`). The worker executes the script in an isolated subprocess, captures standard output (`stdout`), standard error (`stderr`), and CPU execution duration, returning telemetry to the master controller to validate prediction accuracy in real time.
+Module 4 handles communication and telemetry. Once the decision is reached, the payload is packaged into an asynchronous JSON payload `{"code": S}` and dispatched via HTTP POST to the chosen node endpoint (`http://localhost:8000/execute` or `http://EC2_PUBLIC_IP:8000/execute`). The worker executes the script in an isolated subprocess, captures standard output (`stdout`), standard error (`stderr`), and CPU execution duration, returning telemetry to the master controller to validate prediction accuracy in real time.
 
 #### Pseudocode:
 ```python
@@ -345,7 +345,7 @@ Output: Execution Telemetry Record R_telem
 ## 4. Results and Implementation
 
 ### 4.1 Dataset Description
-To train and validate the predictive models across realistic computational regimes, we synthesized and benchmarked **503 unique Python scripts** (`hardware_benchmark.csv`). Each script was executed natively on both the local edge machine and the remote AWS EC2 instance (`t3.micro`, Ubuntu 22.04 LTS, IP: `18.60.41.230`). The distribution of workloads is summarized in Table 1.
+To train and validate the predictive models across realistic computational regimes, we synthesized and benchmarked **503 unique Python scripts** (`hardware_benchmark.csv`). Each script was executed natively on both the local edge machine and the remote AWS EC2 instance (`t3.micro`, Ubuntu 22.04 LTS, IP: `EC2_PUBLIC_IP`). The distribution of workloads is summarized in Table 1.
 
 | Workload Category | Script Count | Typical Complexity | Target Operations | Representative Benchmark |
 | :--- | :--- | :--- | :--- | :--- |
@@ -369,7 +369,7 @@ The static AST feature extraction engine was evaluated across all 503 benchmark 
 ---
 
 ### 4.3 Module 2 Inferences: Network RTT Delay Dynamics & WAN Characterization
-Active network probes conducted against the AWS EC2 instance (`18.60.41.230`) across different times of day yielded empirical latency profiles:
+Active network probes conducted against the AWS EC2 instance (`EC2_PUBLIC_IP`) across different times of day yielded empirical latency profiles:
 - **Inference 2.1:** The median measured network RTT was **$109.7 \text{ ms}$**, fluctuating within a standard deviation of $\sigma = 18.2 \text{ ms}$ (inter-quartile range: $102 \text{ ms} - 138 \text{ ms}$). Transient network spikes reached up to $185 \text{ ms}$.
 - **Inference 2.2:** Because the typical network latency baseline is $\sim 110-130 \text{ ms}$, any workload whose local edge execution duration is below $130 \text{ ms}$ must never be offloaded to the cloud, even if the cloud instance possesses infinite processing power. Module 2's median filtering reliably identified this cutoff boundary.
 
@@ -466,7 +466,7 @@ When submitting string operations or small iterative algorithms, the static AST 
 ---
 
 #### Use Case 3: Production Master Dashboard & Fabric Topology Monitor
-Figure 5 displays the unified master orchestrator interface, showcasing the dark agency aesthetic, real-time node connectivity status (`18.60.41.230` and `localhost:8000`), and zero-emoji developer presentation.
+Figure 5 displays the unified master orchestrator interface, showcasing the dark agency aesthetic, real-time node connectivity status (`EC2_PUBLIC_IP` and `localhost:8000`), and zero-emoji developer presentation.
 
 ![Figure 5: Master Orchestrator Architecture and Landing Interface](file:///Users/adithyabinojnair/.gemini/antigravity-ide/brain/8de2e404-ba7d-46be-957a-205babe342ae/.user_uploaded/media_1791303337852.png)  
 *Figure 5: Master Orchestrator landing page displaying hybrid cloud-edge fabric topology, active node endpoints, and operational status.*
