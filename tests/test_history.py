@@ -68,3 +68,27 @@ class HistoryTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LiveSummaryTests(unittest.TestCase):
+    def test_summary_counts_and_error(self):
+        from pipeline.reporting import live_log_summary
+        recs = [
+            {"ts": 1, "decision": "EDGE", "target": "edge", "confidence": 0.9, "compute_time_s": 1.0,
+             "returncode": 0, "predictions": {"predicted_edge_compute": 1.5}},
+            {"ts": 2, "decision": "CLOUD", "target": "edge", "fallback": True, "fallback_reason": "circuit_open",
+             "confidence": 0.7, "compute_time_s": 2.0, "returncode": 0,
+             "predictions": {"predicted_edge_compute": 2.0}},
+            {"ts": 3, "decision": "CLOUD", "target": "cloud", "explored": True, "confidence": 0.6,
+             "compute_time_s": 9.0, "timed_out": True, "returncode": -9, "predictions": {}},
+        ]
+        s = live_log_summary(recs)
+        self.assertEqual((s["runs"], s["on_cloud"], s["fallbacks"], s["explored"]), (3, 1, 1, 1))
+        self.assertAlmostEqual(s["pred_vs_actual_median_abs_pct"], 25.0)  # 50% and 0%; timeout excluded
+        self.assertEqual(s["recent"][0]["ran_on"], "cloud")  # newest first
+
+    def test_empty(self):
+        from pipeline.reporting import live_log_summary
+        s = live_log_summary([])
+        self.assertEqual(s["runs"], 0)
+        self.assertIsNone(s["pred_vs_actual_median_abs_pct"])

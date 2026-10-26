@@ -1,32 +1,35 @@
 """Schedule, dispatch and show one workload."""
-import time
 
 import plotly.graph_objects as go
-import requests
 import streamlit as st
 
-import config
 
-
-def execute_workload(ctx, code_string, filename, local_url, cloud_url, scheduler_instance):
+def execute_workload(ctx, code_string, filename, dispatcher):
+    """Schedule and run one script through the Dispatcher (fallback, circuit
+    breaker, live RTT, history and the decision log all apply)."""
     chart_act, chart_grid, chart_pred, chart_text = ctx.chart_act, ctx.chart_grid, ctx.chart_pred, ctx.chart_text
-    schedule_res = scheduler_instance.schedule(code_string)
-
-    if "error" in schedule_res:
-        st.error(f"AST Parsing Failed for {filename}: {schedule_res['error']}")
+    st.toast("Scheduling and dispatching", icon="🛰️")
+    try:
+        res = dispatcher.run(code_string)
+    except Exception as ex:  # an edge failure is a real error; cloud errors fall back inside run()
+        st.error(f"Execution failed: {ex}")
         return
 
-    preds = schedule_res["predictions"]
-    decision = schedule_res["decision"]
-    confidence = schedule_res.get("confidence", 0)
-    decision_method = schedule_res.get("decision_method", "regression")
-    target_name = "Local Edge Worker" if decision == "EDGE" else "AWS EC2 Cloud Node"
-    target_url = local_url if decision == "EDGE" else cloud_url
-    is_edge = decision == "EDGE"
-    if not is_edge and not cloud_url:
-        st.warning("Scheduler chose the cloud, but CLOUD_WORKER_URL is not set (see .env.example). "
-                   "Running on the local edge worker instead.")
-        target_name, target_url, is_edge = "Local Edge Worker", local_url, True
+    if "error" in res:
+        st.error(f"AST Parsing Failed for {filename}: {res['error']}")
+        return
+
+    preds = res["predictions"]
+    decision = res["decision"]
+    confidence = res.get("confidence", 0)
+    decision_method = res.get("decision_method", "regression")
+    is_edge = res["target"] == "edge"
+    target_name = "Local Edge Worker" if is_edge else "AWS EC2 Cloud Node"
+    target_url = dispatcher.edge.url if is_edge else dispatcher.cloud.url
+    if res.get("fallback"):
+        st.warning(f"The scheduler chose {decision} but the job ran on the local edge worker ({res['fallback']}).")
+    if res.get("explored"):
+        st.info("Exploration run: this low-confidence job was sent to the other side so the models see both.")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -38,7 +41,7 @@ def execute_workload(ctx, code_string, filename, local_url, cloud_url, scheduler
         <div class="decision-banner {banner_class}" style="margin: 1.5rem 0 1.2rem 0;">
             <div>
                 <div style="font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.08em; margin-bottom: 4px;">
-                    ROUTING DECISION · {decision_method.upper()} CLASSIFIER ({confidence:.1%} CONFIDENCE)
+                    ROUTING DECISION · {decision_method.upper()} ({confidence:.1%} CONFIDENCE)
                 </div>
                 <div style="font-family: var(--font-heading); font-size: 1.3rem; font-weight: 700; color: {badge_color};">
                     Dispatched to {target_name}
@@ -61,52 +64,41 @@ def execute_workload(ctx, code_string, filename, local_url, cloud_url, scheduler
         speedup = (preds['predicted_edge_time'] - preds['predicted_cloud_time'])
         st.metric(label="Predicted Offload Delta", value=f"{speedup:+.4f} s", delta="Cloud Speedup" if speedup > 0 else "Edge Faster")
 
-    worker_data = None
-    total_rtt = 0.0
-    st.toast(f"👾 [TRANSMITTING PAYLOAD TO {target_name}]", icon="🛰️")
-    req_start = time.perf_counter()
-    try:
-        response = requests.post(target_url, json={"code": code_string},
-                                 headers=config.auth_headers(), timeout=65)
-        total_rtt = time.perf_counter() - req_start
-        if response.status_code != 200:
-            raise RuntimeError(f"HTTP {response.status_code}: {response.text[:200]}")
-        worker_data = response.json()
-        st.toast(f"✅ [EXECUTION COMPLETE ON {target_name}]", icon="🏆")
-        st.markdown("""
-        <div id="arcade-overlay" style="
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(11, 12, 16, 0.95); z-index: 999999;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            animation: fadeOutArcade 3.5s forwards; pointer-events: none;
-        ">
-            <h1 style="font-family: 'Press Start 2P', cursive; font-size: 4rem; color: #45f3ff; text-shadow: 6px 6px #ff003c; text-align: center; margin-bottom: 20px; animation: glitch 0.2s linear infinite;">MISSION ACCOMPLISHED</h1>
-            <h2 style="font-family: 'VT323', monospace; font-size: 3rem; color: #00ff00; animation: blinker 0.4s linear infinite;">PAYLOAD ROUTED SUCESSFULLY</h2>
-            <style>
-            @keyframes fadeOutArcade {
-                0% { opacity: 0; transform: scale(0.8); }
-                10% { opacity: 1; transform: scale(1.1); }
-                15% { transform: scale(1); }
-                80% { opacity: 1; transform: scale(1); }
-                100% { opacity: 0; pointer-events: none; display: none; }
-            }
-            @keyframes glitch {
-                0% { transform: translate(0) }
-                20% { transform: translate(-5px, 5px) }
-                40% { transform: translate(-5px, -5px) }
-                60% { transform: translate(5px, 5px) }
-                80% { transform: translate(5px, -5px) }
-                100% { transform: translate(0) }
-            }
-            @keyframes blinker { 50% { opacity: 0; } }
-            </style>
-        </div>
-        <script>
-        setTimeout(() => { document.getElementById('arcade-overlay').style.display = 'none'; }, 3500);
-        </script>
-        """, unsafe_allow_html=True)
-    except Exception as ex:
-        st.error(f"Execution failed on {target_url}: {ex}")
+    worker_data = res["worker"]
+    total_rtt = res["wall_time_s"]
+    st.toast(f"Execution complete on {target_name}", icon="🏆")
+    st.markdown("""
+    <div id="arcade-overlay" style="
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(11, 12, 16, 0.95); z-index: 999999;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        animation: fadeOutArcade 3.5s forwards; pointer-events: none;
+    ">
+        <h1 style="font-family: 'Press Start 2P', cursive; font-size: 4rem; color: #45f3ff; text-shadow: 6px 6px #ff003c; text-align: center; margin-bottom: 20px; animation: glitch 0.2s linear infinite;">MISSION ACCOMPLISHED</h1>
+        <h2 style="font-family: 'VT323', monospace; font-size: 3rem; color: #00ff00; animation: blinker 0.4s linear infinite;">PAYLOAD ROUTED SUCESSFULLY</h2>
+        <style>
+        @keyframes fadeOutArcade {
+            0% { opacity: 0; transform: scale(0.8); }
+            10% { opacity: 1; transform: scale(1.1); }
+            15% { transform: scale(1); }
+            80% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; pointer-events: none; display: none; }
+        }
+        @keyframes glitch {
+            0% { transform: translate(0) }
+            20% { transform: translate(-5px, 5px) }
+            40% { transform: translate(-5px, -5px) }
+            60% { transform: translate(5px, 5px) }
+            80% { transform: translate(5px, -5px) }
+            100% { transform: translate(0) }
+        }
+        @keyframes blinker { 50% { opacity: 0; } }
+        </style>
+    </div>
+    <script>
+    setTimeout(() => { document.getElementById('arcade-overlay').style.display = 'none'; }, 3500);
+    </script>
+    """, unsafe_allow_html=True)
 
     if worker_data:
         st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)

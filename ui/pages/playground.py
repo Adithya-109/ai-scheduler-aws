@@ -2,12 +2,11 @@
 
 import streamlit as st
 
-import config
 from ui.execution import execute_workload
 
 
 def render(ctx) -> None:
-    get_scheduler = ctx.get_scheduler
+    get_dispatcher = ctx.get_dispatcher
     st.markdown("<div class='fluid-view'>", unsafe_allow_html=True)
 
     st.markdown(
@@ -21,10 +20,8 @@ def render(ctx) -> None:
         unsafe_allow_html=True
     )
 
-    local_endpoint = config.execute_url(config.LOCAL_WORKER_URL)
-    cloud_endpoint = config.execute_url(config.CLOUD_WORKER_URL)
     cloud_rtt = st.session_state.sim_cloud_rtt
-    scheduler = get_scheduler(cloud_rtt)
+    dispatcher = get_dispatcher(cloud_rtt)
 
     tab_manual, tab_batch = st.tabs(["Single Code Dispatch", "Multi-File Batch Evaluation"])
 
@@ -92,7 +89,7 @@ print("Loop computation total:", total)"""
                 clicked = True
 
         if clicked:
-            execute_workload(ctx, user_code, "Manual Input", local_endpoint, cloud_endpoint, scheduler)
+            execute_workload(ctx, user_code, "Manual Input", dispatcher)
 
     with tab_batch:
         st.markdown("<br>", unsafe_allow_html=True)
@@ -116,6 +113,6 @@ print("Loop computation total:", total)"""
 
                     with st.expander(f"Script: {file_name}", expanded=True):
                         st.code(file_content, language="python")
-                        execute_workload(ctx, file_content, file_name, local_endpoint, cloud_endpoint, scheduler)
+                        execute_workload(ctx, file_content, file_name, dispatcher)
 
     st.markdown("</div>", unsafe_allow_html=True)

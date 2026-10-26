@@ -19,6 +19,7 @@ from pipeline.scheduler import OffloadingScheduler
 from ui import header, theme
 from ui.execution import execute_workload
 from ui.pages import endpoints, overview, playground, telemetry
+from ui.services import build_dispatcher
 
 
 @st.cache_resource
@@ -35,6 +36,11 @@ def get_summary():
 @st.cache_data(show_spinner=False)
 def get_curve(rtt_ms):
     return reporting.crossover_curve(rtt_ms)
+
+
+@st.cache_resource
+def get_dispatcher(rtt_ms):
+    return build_dispatcher(rtt_ms)
 
 
 STAT = get_summary()
@@ -76,7 +82,7 @@ st.markdown(T.custom_css, unsafe_allow_html=True)
 
 ctx = SimpleNamespace(
     STAT=STAT, SCHED_VS_EDGE=SCHED_VS_EDGE, CLOUD_HOST=CLOUD_HOST,
-    get_scheduler=get_scheduler, get_summary=get_summary, get_curve=get_curve,
+    get_scheduler=get_scheduler, get_dispatcher=get_dispatcher, get_summary=get_summary, get_curve=get_curve,
     execute_workload=execute_workload, **vars(T))
 
 header.render(ctx)

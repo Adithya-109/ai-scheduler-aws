@@ -23,6 +23,7 @@ import numpy as np
 log = logging.getLogger(__name__)
 EPS = 1e-6
 from pipeline.history import OBSERVED_SIGMA_LOG10  # noqa: E402
+
 LN10 = math.log(10.0)
 
 

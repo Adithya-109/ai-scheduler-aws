@@ -73,7 +73,7 @@ def fake_streamlit(tab, calls):
     st.file_uploader = lambda *a, **k: None
     st.rerun = lambda: None
     for name in ("set_page_config", "metric", "plotly_chart", "code", "error", "warning", "success",
-                 "toast", "caption", "expander", "info"):
+                 "toast", "caption", "expander", "info", "dataframe"):
         setattr(st, name, Fake())
     return st
 
@@ -122,6 +122,40 @@ class TestAppSmoke(unittest.TestCase):
 
     def test_telemetry_renders(self):
         self.run_tab("telemetry")
+
+    def test_execute_workload_runs_through_dispatcher(self):
+        """The real execution path against a real (mock) worker over sockets."""
+        import tempfile
+        from types import SimpleNamespace
+
+        from pipeline.dispatcher import Dispatcher, WorkerClient
+        from pipeline.scheduler import OffloadingScheduler
+        from pipeline.telemetry import DecisionLog
+        from tests.mock_worker import MockWorker
+
+        calls = []
+        saved = {k: sys.modules.get(k) for k in ("streamlit", "plotly", "plotly.graph_objects")}
+        pkg, go = fake_plotly()
+        sys.modules.update({"streamlit": fake_streamlit("playground", calls), "plotly": pkg,
+                            "plotly.graph_objects": go})
+        for m in [m for m in sys.modules if m == "ui" or m.startswith("ui.")]:
+            del sys.modules[m]
+        try:
+            from ui.execution import execute_workload
+            with MockWorker(api_key="k") as edge, tempfile.TemporaryDirectory() as d:
+                log = DecisionLog(os.path.join(d, "l.jsonl"))
+                disp = Dispatcher(OffloadingScheduler(cloud_rtt_ms=100), WorkerClient(edge.url, "k"), None, log=log)
+                ctx = SimpleNamespace(chart_act="a", chart_grid="g", chart_pred="p", chart_text="t")
+                execute_workload(ctx, "print(7)", "t.py", disp)
+                self.assertEqual(len(log.read()), 1)
+            html = "\n".join(c for c in calls if isinstance(c, str))
+            self.assertIn("Dispatched to Local Edge Worker", html)
+        finally:
+            for k, v in saved.items():
+                if v is None:
+                    sys.modules.pop(k, None)
+                else:
+                    sys.modules[k] = v
 
 
 if __name__ == "__main__":

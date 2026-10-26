@@ -3,6 +3,10 @@
 import plotly.graph_objects as go
 import streamlit as st
 
+import config
+from pipeline import reporting
+from pipeline.telemetry import DecisionLog
+
 
 def render(ctx) -> None:
     SCHED_VS_EDGE, STAT, chart_grid, chart_pred, chart_text, get_curve = ctx.SCHED_VS_EDGE, ctx.STAT, ctx.chart_grid, ctx.chart_pred, ctx.chart_text, ctx.get_curve
@@ -90,5 +94,32 @@ def render(ctx) -> None:
             legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5)
         )
         st.plotly_chart(pie_fig, use_container_width=True, width="stretch")
+
+    # ---- what the running system has actually done ----
+    live = reporting.live_log_summary(DecisionLog(config.DECISION_LOG).read())
+    st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div style="font-family: var(--font-heading); font-size: 1.1rem; font-weight: 700; color: var(--text-pure); margin-bottom: 0.6rem;">
+            Live Decision Log (this deployment)
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    l1, l2, l3, l4 = st.columns(4, gap="medium")
+    with l1:
+        st.metric(label="Logged runs", value=f"{live['runs']}")
+    with l2:
+        st.metric(label="Ran on cloud", value=f"{live['on_cloud']}")
+    with l3:
+        st.metric(label="Fallbacks / explored", value=f"{live['fallbacks']} / {live['explored']}")
+    with l4:
+        err = live["pred_vs_actual_median_abs_pct"]
+        st.metric(label="Prediction error (median)", value="n/a" if err is None else f"{err:.0f}%")
+    if live["recent"]:
+        st.dataframe(live["recent"], use_container_width=True, hide_index=True)
+    else:
+        st.caption("No runs logged yet. Dispatch something from the Live Dispatch tab; it is recorded in "
+                   f"{config.DECISION_LOG}.")
 
     st.markdown("</div>", unsafe_allow_html=True)

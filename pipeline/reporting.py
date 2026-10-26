@@ -76,3 +76,37 @@ def crossover_curve(rtt_ms: float, bins: int = 8) -> dict:
         "edge": [round(float(v), 4) for v in g.actual_edge_time.median()],
         "cloud_plus_rtt": [round(float(v) + rtt_ms / 1000.0, 4) for v in g.actual_cloud_time.median()],
     }
+
+
+def live_log_summary(records: list[dict], recent: int = 15) -> dict:
+    """Aggregate what the running system has actually done (the decision log).
+
+    ``pred_vs_actual_median_abs_pct`` compares the compute time predicted for the
+    chosen side with the worker-reported time, over runs that completed cleanly.
+    """
+    ok = [r for r in records if r.get("compute_time_s") is not None and not r.get("timed_out")
+          and r.get("returncode", 0) == 0]
+    errs = []
+    for r in ok:
+        p = r.get("predictions", {})
+        pred = p.get("predicted_cloud_compute" if r.get("target") == "cloud" else "predicted_edge_compute")
+        if pred and r["compute_time_s"] > 0:
+            errs.append(abs(pred - r["compute_time_s"]) / r["compute_time_s"])
+    rows = [{
+        "time": time.strftime("%H:%M:%S", time.localtime(r.get("ts", 0))),
+        "decision": r.get("decision"), "ran_on": r.get("target"),
+        "confidence": round(float(r.get("confidence", 0)), 3),
+        "predicted_s": (r.get("predictions", {}).get(
+            "predicted_cloud_compute" if r.get("target") == "cloud" else "predicted_edge_compute")),
+        "actual_s": r.get("compute_time_s"),
+        "fallback": r.get("fallback_reason") or "",
+        "explored": bool(r.get("explored")),
+    } for r in records[-recent:]][::-1]
+    return {
+        "runs": len(records),
+        "on_cloud": sum(r.get("target") == "cloud" for r in records),
+        "fallbacks": sum(bool(r.get("fallback")) for r in records),
+        "explored": sum(bool(r.get("explored")) for r in records),
+        "pred_vs_actual_median_abs_pct": float(np.median(errs) * 100) if errs else None,
+        "recent": rows,
+    }
