@@ -45,6 +45,19 @@ class AsymTests(unittest.TestCase):
         self.assertLess(cv["scheduler_vs_always_edge_pct"], 0)
         self.assertLess(cv["policy_total_seconds"]["scheduler"], cv["policy_total_seconds"]["always_cloud"])
 
+    def test_report_reproduces_training_numbers_with_interval(self):
+        import re
+        import subprocess
+        out = subprocess.run([sys.executable, "-W", "ignore", os.path.join(ROOT, "bench", "asym_report.py"), DATA,
+                              "--rtt-ms", "110", "--bootstrap", "200"], capture_output=True, text=True, check=True).stdout
+        rel = float(re.search(r"always-edge: ([+-][\d.]+)%", out).group(1))
+        cv = json.load(open(os.path.join(ASYM, "training_metadata.json")))["cv"]
+        self.assertAlmostEqual(rel, cv["scheduler_vs_always_edge_pct"], delta=0.06)
+        lo, hi = map(float, re.search(r"scripts \[([+-][\d.]+)%, ([+-][\d.]+)%\]", out).groups())
+        self.assertLess(lo, rel)
+        self.assertGreater(hi, rel)
+        self.assertLess(hi, 0)  # the whole interval is below zero
+
 
 if __name__ == "__main__":
     unittest.main()
