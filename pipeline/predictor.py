@@ -49,7 +49,7 @@ class LatencyPredictor:
     def __init__(self, network_latency_cloud_ms: float | None = None, margin: float = 0.0,
                  bandwidth_bytes_per_s: float | None = None, models_dir: str | None = None):
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        models_dir = models_dir or os.path.join(base_dir, "models")
+        models_dir = models_dir or os.environ.get("SCHEDULER_MODELS_DIR") or os.path.join(base_dir, "models")
         self.margin = float(margin)
         self.bandwidth = bandwidth_bytes_per_s
         self.metadata: dict = {}

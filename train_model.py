@@ -4,6 +4,7 @@
     python3 train_model.py --probe            # measure RTT live against CLOUD_WORKER_URL
     python3 train_model.py --rtt-ms 95        # set RTT explicitly
     python3 train_model.py --log logs/decisions.jsonl   # add logged outcomes (bandit feedback)
+    python3 train_model.py --data data/docker_asym_v1/asym_benchmark.csv --out-dir models/asym --rtt-ms 110
 
 There is no synthetic label. The routing decision is a rule applied at
 inference time:  CLOUD  iff  predicted_cloud + RTT + transfer < predicted_edge.
@@ -71,7 +72,7 @@ def measure_rtt(url: str, probes: int = 9) -> float | None:
     return statistics.median(samples) if samples else None
 
 
-def resolve_rtt(args) -> tuple[float, str]:
+def resolve_rtt(args, meta_path: str = META_PATH) -> tuple[float, str]:
     if args.rtt_ms is not None:
         return args.rtt_ms / 1000.0, "cli"
     if args.probe:
@@ -82,8 +83,8 @@ def resolve_rtt(args) -> tuple[float, str]:
         if rtt is None:
             raise SystemExit("could not measure RTT: cloud worker unreachable")
         return rtt, "probe"
-    if os.path.exists(META_PATH):
-        with open(META_PATH, encoding="utf-8") as fh:
+    if os.path.exists(meta_path):
+        with open(meta_path, encoding="utf-8") as fh:
             prev = json.load(fh)
         if "measured_rtt_seconds" in prev:
             return float(prev["measured_rtt_seconds"]), "previous_metadata"
@@ -96,13 +97,17 @@ def main() -> None:
     ap.add_argument("--probe", action="store_true")
     ap.add_argument("--log", default="", help="decision log (JSONL) to learn from")
     ap.add_argument("--folds", type=int, default=5)
+    ap.add_argument("--data", default=DATA_FILE, help="benchmark CSV (file, actual_edge_time, actual_cloud_time)")
+    ap.add_argument("--out-dir", default=MODELS_DIR, help="where to write the models and metadata")
     args = ap.parse_args()
+    out_dir = os.path.abspath(args.out_dir)
+    meta_path = os.path.join(out_dir, "training_metadata.json")
     warnings.filterwarnings("ignore", category=UserWarning)
 
-    rtt, rtt_source = resolve_rtt(args)
+    rtt, rtt_source = resolve_rtt(args, meta_path)
     print(f"RTT = {rtt*1000:.1f} ms ({rtt_source})")
 
-    df = load_benchmark()
+    df = load_benchmark(args.data)
     print(f"dataset: {len(df)} scripts, {df.family.nunique()} families, features v{FEATURE_VERSION}")
     X = df[FEATURE_COLUMNS].to_numpy(dtype=float)
     edge = df.actual_edge_time.to_numpy()
@@ -157,9 +162,15 @@ def main() -> None:
     edge_model = make_regressor().fit(Xe, ye)
     cloud_model = make_regressor().fit(Xc, yc)
 
-    os.makedirs(MODELS_DIR, exist_ok=True)
-    joblib.dump(edge_model, os.path.join(MODELS_DIR, "edge_model.pkl"))
-    joblib.dump(cloud_model, os.path.join(MODELS_DIR, "cloud_model.pkl"))
+    os.makedirs(out_dir, exist_ok=True)
+    joblib.dump(edge_model, os.path.join(out_dir, "edge_model.pkl"))
+    joblib.dump(cloud_model, os.path.join(out_dir, "cloud_model.pkl"))
+    hw = {}
+    sidecar = os.path.splitext(args.data)[0] + ".meta.json"
+    if os.path.exists(sidecar):
+        with open(sidecar, encoding="utf-8") as fh:
+            m = json.load(fh)
+        hw = {"edge": m.get("edge", {}).get("description"), "cloud": m.get("cloud", {}).get("instance_type")}
     meta = {
         "model_type": "HistGradientBoostingRegressor (log10 seconds)",
         "feature_version": FEATURE_VERSION,
@@ -172,15 +183,17 @@ def main() -> None:
         "training_samples": len(df),
         "logged_samples": n_logged,
         "families": sorted(df.family.unique().tolist()),
-        "data_sha256": file_sha256(DATA_FILE),
+        "data_file": os.path.relpath(os.path.abspath(args.data), ROOT),
+        "data_sha256": file_sha256(args.data),
+        "hardware": hw,
         "trained_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "versions": {"scikit-learn": sklearn.__version__, "numpy": np.__version__,
                      "python": platform.python_version()},
         "cv": {"scheme": f"GroupKFold({args.folds}) by script family, out-of-fold", **metrics},
     }
-    with open(META_PATH, "w", encoding="utf-8") as fh:
+    with open(meta_path, "w", encoding="utf-8") as fh:
         json.dump(meta, fh, indent=2)
-    print("saved models/edge_model.pkl, models/cloud_model.pkl, models/training_metadata.json")
+    print(f"saved edge_model.pkl, cloud_model.pkl, training_metadata.json to {out_dir}")
 
 
 if __name__ == "__main__":

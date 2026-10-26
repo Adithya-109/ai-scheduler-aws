@@ -11,7 +11,8 @@ import numpy as np
 from pipeline.dataset import ROOT, SCRIPTS_DIR, load_benchmark
 from pipeline.feature_extractor import CodeFeatureExtractor
 
-META_PATH = os.path.join(ROOT, "models", "training_metadata.json")
+META_PATH = os.path.join(os.environ.get("SCHEDULER_MODELS_DIR") or os.path.join(ROOT, "models"),
+                         "training_metadata.json")
 
 
 def load_metadata() -> dict:
