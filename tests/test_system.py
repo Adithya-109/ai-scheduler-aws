@@ -138,6 +138,16 @@ class TestDispatcher(unittest.TestCase):
             self.assertIn("features", rec)
             self.assertEqual(rec["returncode"], 0)
 
+    def test_dispatcher_learns_runtime_from_its_own_runs(self):
+        from pipeline.history import RuntimeHistory
+        with MockWorker(api_key="k") as edge:
+            sched = OffloadingScheduler(rtt_tracker=RttTracker(), history=RuntimeHistory(min_obs=2))
+            d = Dispatcher(sched, WorkerClient(edge.url, "k"), None, log=self.log)
+            self.assertEqual(d.run("print(1)")["decision_method"], "regression")
+            d.run("print(1)")
+            third = d.run("print(1)")
+            self.assertEqual(third["decision_method"], "regression+history")
+
     def test_cloud_error_falls_back_to_edge(self):
         with MockWorker(api_key="k") as edge:
             dead = WorkerClient("http://127.0.0.1:9", "k", timeout=1)  # nothing listens on :9

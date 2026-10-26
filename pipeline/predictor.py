@@ -22,6 +22,7 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 EPS = 1e-6
+from pipeline.history import OBSERVED_SIGMA_LOG10  # noqa: E402
 LN10 = math.log(10.0)
 
 
@@ -86,7 +87,8 @@ class LatencyPredictor:
         return False
 
     def predict(self, features: dict, code_bytes: int = 0, rtt_s: float | None = None,
-                cloud_load: dict | None = None, edge_load: dict | None = None) -> dict:
+                cloud_load: dict | None = None, edge_load: dict | None = None,
+                observed_edge_s: float | None = None, observed_cloud_s: float | None = None) -> dict:
         if "error" in features or not self.models_loaded:
             return {"predicted_edge_time": 0.0, "predicted_cloud_time": 0.0,
                     "routing_decision": "EDGE", "confidence": 0.0, "method": "fallback"}
@@ -95,6 +97,14 @@ class LatencyPredictor:
         edge_s = max(10 ** float(self.edge_model.predict(x)[0]) - EPS, 1e-4)
         cloud_s = max(10 ** float(self.cloud_model.predict(x)[0]) - EPS, 1e-4)
 
+        sig_e, sig_c, used = self.sigma_edge, self.sigma_cloud, []
+        if observed_edge_s is not None:
+            edge_s, sig_e = max(observed_edge_s, 1e-4), OBSERVED_SIGMA_LOG10
+            used.append("edge")
+        if observed_cloud_s is not None:
+            cloud_s, sig_c = max(observed_cloud_s, 1e-4), OBSERVED_SIGMA_LOG10
+            used.append("cloud")
+
         rtt = self.fixed_rtt if self.fixed_rtt is not None else (rtt_s if rtt_s is not None else self.default_rtt)
         transfer = code_bytes / self.bandwidth if self.bandwidth else 0.0
         edge_total = edge_s + queue_penalty(edge_load, edge_s)
@@ -102,7 +112,7 @@ class LatencyPredictor:
 
         cloud_wins = cloud_total < edge_total * (1.0 - self.margin)
         d = math.log(edge_total) - math.log(cloud_total)  # > 0: cloud faster
-        sd = LN10 * math.hypot(self.sigma_edge, self.sigma_cloud * cloud_s / cloud_total)
+        sd = LN10 * math.hypot(sig_e, sig_c * cloud_s / cloud_total)
         p_cloud = _phi(d / sd) if sd > 0 else (1.0 if d > 0 else 0.0)
         return {
             "predicted_edge_time": round(edge_total, 4),
@@ -113,5 +123,6 @@ class LatencyPredictor:
             "transfer_s": round(transfer, 4),
             "routing_decision": "CLOUD" if cloud_wins else "EDGE",
             "confidence": round(p_cloud if cloud_wins else 1.0 - p_cloud, 4),
-            "method": "regression",
+            "method": ("history" if len(used) == 2 else "regression+history" if used else "regression"),
+            "observed_sides": used,
         }

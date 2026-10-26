@@ -131,6 +131,10 @@ class Dispatcher:
             "wall_time_s": wall,
             "compute_time_s": compute,
         }
+        if self.scheduler.history is not None:
+            self.scheduler.history.observe(
+                plan["code_hash"], target, compute,
+                ok=data.get("returncode", 0) == 0 and not data.get("timed_out", False))
         if self.log is not None:
             self.log.record(
                 code_hash=plan["code_hash"], feature_version=plan["feature_version"],
