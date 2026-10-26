@@ -117,9 +117,11 @@ def _prod(dims) -> float:
     return p
 
 
-_NP_CREATORS_DIMS = {"rand", "randn", "zeros", "ones", "empty", "eye", "identity", "random_sample", "random", "full"}
+_NP_CREATORS_DIMS = {"rand", "randn", "zeros", "ones", "empty", "eye", "identity", "random_sample", "random", "full",
+                     "standard_normal", "standard_exponential"}
+_NP_GENERATOR_CTORS = {"default_rng", "RandomState", "Generator"}
 _NP_BLAS = {"dot", "matmul", "inner", "tensordot", "einsum", "inv", "solve", "svd", "eig", "eigh",
-            "det", "qr", "cholesky", "lstsq", "pinv", "matrix_power"}
+            "det", "qr", "cholesky", "lstsq", "pinv", "matrix_power", "eigvalsh", "eigvals", "svdvals", "slogdet"}
 _NP_NLOGN = {"sort", "argsort", "fft", "ifft", "fft2", "ifft2", "rfft", "unique", "searchsorted",
              "partition", "lexsort"}
 _NP_UNARY_KEEP_SHAPE = _NP_NLOGN | {"abs", "exp", "log", "sqrt", "sin", "cos", "tanh", "cumsum", "cumprod",
@@ -139,6 +141,7 @@ class _Analyzer:
         self.consts: dict[str, float] = {}
         self.sizes: dict[str, float] = {}      # name -> log10(len)
         self.arrays: dict[str, tuple] = {}     # name -> dims
+        self.gens: set[str] = set()            # names bound to a numpy Generator / RandomState
         self.stack: list[str] = []
         self.memo: dict = {}
         self.ticks = 0
@@ -246,7 +249,19 @@ class _Analyzer:
             return d.split(".")[-1]
         if isinstance(call.func, ast.Name) and call.func.id in self.np_funcs:
             return call.func.id
+        # rng = np.random.default_rng(0); rng.random((n, n)) is a numpy call too
+        if isinstance(call.func, ast.Attribute) and isinstance(call.func.value, ast.Name) \
+                and call.func.value.id in self.gens:
+            return call.func.attr
         return None
+
+    def _is_generator_ctor(self, value: ast.AST | None) -> bool:
+        if not isinstance(value, ast.Call):
+            return False
+        d = _dotted(value.func)
+        if d is None or d.split(".")[-1] not in _NP_GENERATOR_CTORS:
+            return False
+        return d.split(".")[0] in self.np_roots or (isinstance(value.func, ast.Name) and value.func.id in self.np_funcs)
 
     def _creator_dims(self, call: ast.Call, last: str) -> tuple | None:
         a = call.args
@@ -273,7 +288,7 @@ class _Analyzer:
                 if kw.arg == "num":
                     num = self._const(kw.value)
             return (num if num is not None else 50.0,)
-        if last in ("randint", "normal", "uniform", "choice", "permutation"):
+        if last in ("randint", "integers", "normal", "uniform", "choice", "permutation"):
             for kw in call.keywords:
                 if kw.arg == "size":
                     if isinstance(kw.value, ast.Tuple):
@@ -281,7 +296,7 @@ class _Analyzer:
                         return tuple(vals) if all(v is not None for v in vals) else None  # type: ignore[arg-type]
                     v = self._const(kw.value)
                     return (v,) if v is not None else None
-            if last == "randint" and len(a) >= 3:
+            if last in ("randint", "integers") and len(a) >= 3:
                 v = self._const(a[2])
                 return (v,) if v is not None else None
             if last == "permutation" and a:
@@ -399,6 +414,10 @@ class _Analyzer:
         if not isinstance(target, ast.Name):
             return
         name = target.id
+        if self._is_generator_ctor(value):
+            self.gens.add(name)
+        else:
+            self.gens.discard(name)
         for table, getter in ((self.consts, self._const), (self.sizes, self._size_of)):
             v = getter(value)
             if v is None:

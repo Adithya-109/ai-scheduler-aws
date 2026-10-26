@@ -26,7 +26,8 @@ class HoldoutTests(unittest.TestCase):
             self.assertFalse(f.get("analysis_degraded"), r["file"])
             cx.append(f["estimated_complexity"])
             t.append(r["seconds"])
-        # Measured 0.43 when written; the floor catches regressions, not noise.
+        # 0.43 when first measured, 0.39 after re-timing and the Generator-size fix (n=16, so within noise);
+        # the floor catches regressions, not noise.
         self.assertGreater(spearman(cx, t), 0.30)
 
 

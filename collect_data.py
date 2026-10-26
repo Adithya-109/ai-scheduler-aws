@@ -80,7 +80,7 @@ def probe_rtt(health_url: str, n: int = 9) -> float | None:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--repeats", type=int, default=3)
-    ap.add_argument("--only", default="*", help="glob over script filenames")
+    ap.add_argument("--only", default="*", help="glob(s) over script filenames, comma-separated, e.g. 'blas*,fftbig*'")
     ap.add_argument("--timeout", type=float, default=30.0)
     ap.add_argument("--edge-url", default="",
                     help="measure the edge through a worker at this URL (e.g. a CPU-limited container) "
@@ -95,7 +95,7 @@ def main() -> int:
 
     edge_url = config.execute_url(args.edge_url)
     scripts_dir = os.path.join(ROOT, "test_scripts")
-    files = sorted(f for f in os.listdir(scripts_dir) if f.endswith(".py") and fnmatch.fnmatch(f, args.only))
+    files = sorted(f for f in os.listdir(scripts_dir) if f.endswith(".py") and any(fnmatch.fnmatch(f, pat) for pat in args.only.split(",")))
     rtt = probe_rtt(config.health_url(config.CLOUD_WORKER_URL))
     print(f"{len(files)} scripts, {args.repeats} repeats per side, RTT={'n/a' if rtt is None else f'{rtt*1000:.1f} ms'}")
 

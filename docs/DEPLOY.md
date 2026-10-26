@@ -95,3 +95,25 @@ guards in `tests/test_terraform.py` pin the security posture, but run
 Terraform state and instance user-data: keep state private (a remote encrypted
 backend) and rotate the key if either leaks. Traffic on 8000 is plain HTTP; put
 TLS in front before sending anything you would not want read on the wire.
+
+## 6. Container experiment (two workers on one machine)
+
+No cloud account needed: `scripts/run_asymmetric_experiment.sh` runs a CPU-limited edge worker and a larger
+"cloud" worker in Docker, times every script through both, and scores the scheduler out of fold. The network
+delay is a simulated constant, so this tests compute asymmetry only, not your WAN.
+
+```bash
+MODE=docker EDGE_CPUS=0.5 CLOUD_CPUS=4 REPEATS=3 ./scripts/run_asymmetric_experiment.sh
+# only the heavy, multi-core-friendly workloads (generate_heavy_scripts.py):
+MODE=docker ONLY='blas*,fftbig*,ewisebig*,cpuloop*' EDGE_CPUS=0.5 CLOUD_CPUS=4 REPEATS=3 \
+  ./scripts/run_asymmetric_experiment.sh
+# merge a later run into the dataset (same hardware settings only), retrain, score with error bars:
+python3 scripts/merge_datasets.py data/docker_asym_v1 experiments/<timestamp> --out data/docker_asym_v2
+python3 train_model.py --data data/docker_asym_v2/asym_benchmark.csv --out-dir models/asym_v2 --rtt-ms 110
+python3 bench/asym_report.py data/docker_asym_v2/asym_benchmark.csv --rtt-ms 110 --bootstrap 2000 \
+  --markdown bench/ASYM_RESULTS.md
+SCHEDULER_MODELS_DIR=models/asym_v2 streamlit run app.py     # run the app with those models
+```
+
+Give Docker Desktop at least as many CPUs as `CLOUD_CPUS` (Settings, Resources) and keep the machine otherwise idle
+while it runs. If `docker` is not found in Terminal, add `/Applications/Docker.app/Contents/Resources/bin` to `PATH`.

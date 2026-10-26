@@ -1,101 +1,101 @@
 {
   "n": 16,
-  "spearman": 0.4323529411764706,
+  "spearman": 0.38823529411764707,
   "rows": [
     {
       "file": "h01_sieve.py",
       "complexity": 6.791205668106328,
-      "seconds": 0.3385529129999725,
+      "seconds": 0.37502656100002696,
       "degraded": false
     },
     {
       "file": "h02_collatz.py",
       "complexity": 8.681559601467514,
-      "seconds": 0.9841659209999989,
+      "seconds": 1.1583427369999981,
       "degraded": false
     },
     {
       "file": "h03_matmul_np.py",
-      "complexity": 3.122618116097228,
-      "seconds": 0.17393642900000827,
+      "complexity": 5.935283070630475,
+      "seconds": 0.23965648399996553,
       "degraded": false
     },
     {
       "file": "h04_wordfreq.py",
       "complexity": 6.778151757060243,
-      "seconds": 0.535919702000001,
+      "seconds": 0.6805959210000196,
       "degraded": false
     },
     {
       "file": "h05_fib_rec.py",
       "complexity": 6.487764750544237,
-      "seconds": 0.05447603799999001,
+      "seconds": 0.05423469799995928,
       "degraded": false
     },
     {
       "file": "h06_nested_sum.py",
       "complexity": 6.9543874430999235,
-      "seconds": 0.36046749799999134,
+      "seconds": 0.42746239199999536,
       "degraded": false
     },
     {
       "file": "h07_sort_big.py",
       "complexity": 6.683349799653697,
-      "seconds": 0.6831370849999985,
+      "seconds": 0.8520750150000254,
       "degraded": false
     },
     {
       "file": "h08_tiny.py",
       "complexity": 2.0170333392987803,
-      "seconds": 0.02088777599999503,
+      "seconds": 0.019865713000001506,
       "degraded": false
     },
     {
       "file": "h09_np_elementwise.py",
       "complexity": 6.054023842119567,
-      "seconds": 0.20125722999998175,
+      "seconds": 0.19883483500001375,
       "degraded": false
     },
     {
       "file": "h10_string_build.py",
       "complexity": 6.3010313202601305,
-      "seconds": 0.1299867539999866,
+      "seconds": 0.13500889400000915,
       "degraded": false
     },
     {
       "file": "h11_dp_lcs.py",
       "complexity": 5.148340395018277,
-      "seconds": 0.6760788529999786,
+      "seconds": 0.6570099059999848,
       "degraded": false
     },
     {
       "file": "h12_listcomp.py",
       "complexity": 6.7781515399132015,
-      "seconds": 0.3303468880000082,
+      "seconds": 0.31616834499999413,
       "degraded": false
     },
     {
       "file": "h13_np_linalg.py",
-      "complexity": 3.1222905265923333,
-      "seconds": 0.3595662870000069,
+      "complexity": 6.248919836664979,
+      "seconds": 0.39139428499998985,
       "degraded": false
     },
     {
       "file": "h14_primes_trial.py",
       "complexity": 5.3010386814667605,
-      "seconds": 0.6132244300000025,
+      "seconds": 0.6834954649999645,
       "degraded": false
     },
     {
       "file": "h15_dict_ops.py",
       "complexity": 6.698970438630284,
-      "seconds": 0.24594159899999113,
+      "seconds": 0.33428216900000507,
       "degraded": false
     },
     {
       "file": "h16_sleepy.py",
       "complexity": 6.7781515399132015,
-      "seconds": 0.6303040530000033,
+      "seconds": 0.6219399789999898,
       "degraded": false
     }
   ]

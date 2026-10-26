@@ -167,3 +167,39 @@ class TestRobustness(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestGeneratorSizes(unittest.TestCase):
+    """rng = np.random.default_rng(...); rng.random((n, n)) must size arrays like np.random.rand does."""
+
+    @staticmethod
+    def feats(code):
+        from pipeline.feature_extractor import CodeFeatureExtractor
+        return CodeFeatureExtractor().analyze(code)
+
+    def test_matmul_cost_grows_with_generator_array_size(self):
+        tpl = "import numpy as np\nrng = np.random.default_rng(0)\nA = rng.random(({n}, {n}))\nB = A @ A\n"
+        small, big = self.feats(tpl.format(n=500)), self.feats(tpl.format(n=3000))
+        self.assertGreater(big["log_blas_flops"], small["log_blas_flops"] + 2.0)  # (3000/500)^3 ~ 2.3 decades
+
+    def test_matches_legacy_rand_spelling(self):
+        gen = self.feats("import numpy as np\nrng = np.random.default_rng(0)\nA = rng.random((800, 800))\nB = A @ A\n")
+        old = self.feats("import numpy as np\nA = np.random.rand(800, 800)\nB = A @ A\n")
+        self.assertAlmostEqual(gen["log_blas_flops"], old["log_blas_flops"], places=6)
+
+    def test_fft_and_elementwise_scale(self):
+        fft = "import numpy as np\nrng = np.random.default_rng(1)\nx = rng.random(2 ** {n})\ny = np.fft.rfft(x)\n"
+        self.assertGreater(self.feats(fft.format(n=23))["log_numpy_elems"], self.feats(fft.format(n=18))["log_numpy_elems"] + 1)
+        ew = "import numpy as np\nrng = np.random.default_rng(1)\nx = rng.random({n})\ny = np.sqrt(x * x + 1.0)\n"
+        self.assertGreater(self.feats(ew.format(n=30_000_000))["estimated_complexity"],
+                           self.feats(ew.format(n=1_000_000))["estimated_complexity"])
+
+    def test_unrelated_object_named_like_a_generator_is_not_numpy(self):
+        code = "class R:\n    def random(self, n):\n        return n\nrng = R()\nx = rng.random(10 ** 7)\n"
+        self.assertLess(self.feats(code)["log_numpy_elems"], 3.0)
+
+    def test_svd_and_eigh_scale(self):
+        tpl = "import numpy as np\nrng = np.random.default_rng(0)\nA = rng.random(({n}, {n}))\ns = np.linalg.{f}(A)\n"
+        for f in ("svd", "eigvalsh"):
+            self.assertGreater(self.feats(tpl.format(n=1200, f=f))["log_blas_flops"],
+                               self.feats(tpl.format(n=300, f=f))["log_blas_flops"] + 1.0)

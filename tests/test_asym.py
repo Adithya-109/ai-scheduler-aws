@@ -61,3 +61,28 @@ class AsymTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MergeTests(unittest.TestCase):
+    def _mk(self, d, rows, edge="docker --cpus=0.5"):
+        import pandas as pd
+        os.makedirs(d)
+        pd.DataFrame(rows).to_csv(os.path.join(d, "asym_benchmark.csv"), index=False)
+        json.dump({"edge": {"description": edge, "cpu_count": 10}, "cloud": {"instance_type": "c", "health": {"cpu_count": 4}},
+                   "collected_at": "t"}, open(os.path.join(d, "asym_benchmark.meta.json"), "w"))
+
+    def test_merge_keeps_last_and_rejects_mixed_hardware(self):
+        import tempfile
+        sys.path.insert(0, os.path.join(ROOT, "scripts"))
+        import merge_datasets as m
+        with tempfile.TemporaryDirectory() as t:
+            r = lambda f, e, c: {"file": f, "actual_edge_time": e, "actual_cloud_time": c}  # noqa: E731
+            self._mk(os.path.join(t, "a"), [r("x.py", 1, 1), r("y.py", 2, 2)])
+            self._mk(os.path.join(t, "b"), [r("y.py", 3, 3), r("z.py", 4, 4)])
+            self._mk(os.path.join(t, "c"), [r("w.py", 1, 1)], edge="docker --cpus=2")
+            df, meta = m.merge([os.path.join(t, "a"), os.path.join(t, "b")])
+            self.assertEqual(list(df.file), ["x.py", "y.py", "z.py"])
+            self.assertEqual(float(df.loc[df.file == "y.py", "actual_edge_time"].iloc[0]), 3.0)
+            self.assertEqual(meta["scripts"], 3)
+            with self.assertRaises(SystemExit):
+                m.merge([os.path.join(t, "a"), os.path.join(t, "c")])
