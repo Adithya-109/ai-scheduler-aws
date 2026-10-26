@@ -165,7 +165,8 @@ def build(mode: str) -> SimpleNamespace:
 
     /* Precision Container Layout with Generous Margins */
     .main .block-container {{
-        max-width: 1220px !important;
+        max-width: 1500px !important;
+        zoom: 1.25;
         padding-top: 1.6rem !important;
         padding-bottom: 5rem !important;
         padding-left: 2rem !important;

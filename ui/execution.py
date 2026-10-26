@@ -87,7 +87,27 @@ def execute_workload(ctx, code_string, filename, dispatcher):
     .done-banner span { font-family: var(--font-mono); font-size: 1.3rem; color: var(--text-muted); }
     </style>
     <div class="done-banner"><b>DONE</b> &middot; ran on __TARGET__<br><span>__TIME__ s round trip</span></div>
-    """.replace("__TARGET__", "EDGE" if is_edge else "CLOUD").replace("__TIME__", f"{total_rtt:.3f}"),
+    <style>
+    @keyframes arcadeFlash { 0%,100% { opacity: 0; } 8%,70% { opacity: 1; } 85% { opacity: 0; } }
+    @keyframes arcadeRun { 0% { left: 6%; } 60%,100% { left: __END__%; } }
+    @keyframes arcadePop { 0% { transform: scale(0.2); opacity: 0; } 55% { transform: scale(1.25); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+    @keyframes arcadeCoin { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-60px); opacity: 0; } }
+    .arcade { position: fixed; left: 0; right: 0; top: 38%; height: 190px; z-index: 999998; pointer-events: none;
+        background: rgba(0,0,0,0.82); border-top: 4px solid #45f3ff; border-bottom: 4px solid #ff003c;
+        font-family: 'Press Start 2P', cursive; color: #fff; animation: arcadeFlash 1.8s steps(12) forwards; opacity: 0; }
+    .arcade .lane { position: absolute; left: 6%; right: 6%; top: 112px; border-top: 4px dashed #555; }
+    .arcade .end { position: absolute; top: 90px; font-size: 14px; color: #45f3ff; }
+    .arcade .end.l { left: 2%; } .arcade .end.r { right: 2%; }
+    .arcade .ship { position: absolute; top: 80px; font-size: 34px; animation: arcadeRun 1.1s steps(10) forwards; }
+    .arcade .title { position: absolute; top: 18px; width: 100%; text-align: center; font-size: 26px; color: #ffe600;
+        text-shadow: 4px 4px 0 #ff003c; animation: arcadePop 0.6s steps(6) 0.7s both; }
+    .arcade .coin { position: absolute; top: 60px; font-size: 22px; color: #ffe600; animation: arcadeCoin 0.7s steps(7) 1s both; }
+    </style>
+    <div class="arcade"><div class="title">STAGE CLEAR!</div>
+        <div class="end l">EDGE</div><div class="end r">CLOUD</div><div class="lane"></div>
+        <div class="ship">&#9654;&#9654;</div>
+        <span class="coin" style="left:30%">&#9733;</span><span class="coin" style="left:50%">&#9733;</span><span class="coin" style="left:70%">&#9733;</span></div>
+    """.replace("__END__", "8" if is_edge else "88").replace("__TARGET__", "EDGE" if is_edge else "CLOUD").replace("__TIME__", f"{total_rtt:.3f}"),
         unsafe_allow_html=True,
     )
 
