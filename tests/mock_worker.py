@@ -13,7 +13,8 @@ from worker.runner import JobSlots, Limits, health_snapshot, run_job, verify_api
 
 
 class MockWorker:
-    def __init__(self, api_key: str = "", max_jobs: int = 2, limits: Limits | None = None, extra_delay_s: float = 0.0):
+    def __init__(self, api_key: str = "", max_jobs: int = 2, limits: Limits | None = None, extra_delay_s: float = 0.0,
+                 port: int = 0, host: str = "127.0.0.1"):
         self.api_key, self.limits = api_key, limits or Limits(timeout_s=10)
         self.slots = JobSlots(max_jobs)
         self.extra_delay_s = extra_delay_s
@@ -56,8 +57,8 @@ class MockWorker:
                 finally:
                     outer.slots.release()
 
-        self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-        self.url = f"http://127.0.0.1:{self.httpd.server_address[1]}"
+        self.httpd = ThreadingHTTPServer((host, port), Handler)
+        self.url = f"http://{host}:{self.httpd.server_address[1]}"
         self._thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
 
     def __enter__(self):

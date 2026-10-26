@@ -82,6 +82,9 @@ def main() -> int:
     ap.add_argument("--repeats", type=int, default=3)
     ap.add_argument("--only", default="*", help="glob over script filenames")
     ap.add_argument("--timeout", type=float, default=30.0)
+    ap.add_argument("--edge-url", default="",
+                    help="measure the edge through a worker at this URL (e.g. a CPU-limited container) "
+                         "instead of in this process")
     ap.add_argument("--output", default=os.path.join(ROOT, "hardware_benchmark.csv"))
     args = ap.parse_args()
 
@@ -90,6 +93,7 @@ def main() -> int:
         print("CLOUD_WORKER_URL is not set (see .env.example).", file=sys.stderr)
         return 2
 
+    edge_url = config.execute_url(args.edge_url)
     scripts_dir = os.path.join(ROOT, "test_scripts")
     files = sorted(f for f in os.listdir(scripts_dir) if f.endswith(".py") and fnmatch.fnmatch(f, args.only))
     rtt = probe_rtt(config.health_url(config.CLOUD_WORKER_URL))
@@ -99,7 +103,9 @@ def main() -> int:
     for i, name in enumerate(files, 1):
         with open(os.path.join(scripts_dir, name), encoding="utf-8") as fh:
             code = fh.read()
-        e_med, e_sd, e_err = measure(lambda: run_edge(code, args.timeout), args.repeats)
+        e_med, e_sd, e_err = measure(
+            (lambda: run_cloud(code, edge_url, args.timeout)) if edge_url else (lambda: run_edge(code, args.timeout)),
+            args.repeats)
         try:
             c_med, c_sd, c_err = measure(lambda: run_cloud(code, cloud_url, args.timeout), args.repeats)
         except requests.RequestException as ex:
