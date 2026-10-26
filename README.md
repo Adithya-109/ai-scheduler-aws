@@ -131,3 +131,12 @@ python3 collect_data.py --repeats 5               # re-measure on real hardware 
 ## Academic context
 
 Developed for the Cloud Computing (CAD) course at Vellore Institute of Technology (VIT).
+
+## Demo
+
+```bash
+./scripts/run_demo.sh      # landing page (8080) -> dashboard (8501) + local worker (8000)
+```
+
+The landing page's LAUNCH button opens the dashboard directly on Live Dispatch. Light theme is the default
+(toggle in the header). Needs `.env` with `WORKER_API_KEY` and, for the cloud side, `CLOUD_WORKER_URL`.

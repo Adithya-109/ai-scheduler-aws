@@ -15,7 +15,7 @@ setTimeout(typeWriter, 1000);
 
 // Theme Toggle Logic
 const themeToggle = document.getElementById('theme-toggle');
-let isLightMode = false;
+let isLightMode = true;  // light is the default (matches data-theme in index.html)
 
 themeToggle.addEventListener('click', () => {
     isLightMode = !isLightMode;

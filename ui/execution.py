@@ -66,39 +66,30 @@ def execute_workload(ctx, code_string, filename, dispatcher):
 
     worker_data = res["worker"]
     total_rtt = res["wall_time_s"]
-    st.toast(f"Execution complete on {target_name}", icon="🏆")
-    st.markdown("""
-    <div id="arcade-overlay" style="
-        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-        background: rgba(11, 12, 16, 0.95); z-index: 999999;
-        display: flex; flex-direction: column; justify-content: center; align-items: center;
-        animation: fadeOutArcade 3.5s forwards; pointer-events: none;
-    ">
-        <h1 style="font-family: 'Press Start 2P', cursive; font-size: 4rem; color: #45f3ff; text-shadow: 6px 6px #ff003c; text-align: center; margin-bottom: 20px; animation: glitch 0.2s linear infinite;">MISSION ACCOMPLISHED</h1>
-        <h2 style="font-family: 'VT323', monospace; font-size: 3rem; color: #00ff00; animation: blinker 0.4s linear infinite;">PAYLOAD ROUTED SUCESSFULLY</h2>
-        <style>
-        @keyframes fadeOutArcade {
-            0% { opacity: 0; transform: scale(0.8); }
-            10% { opacity: 1; transform: scale(1.1); }
-            15% { transform: scale(1); }
-            80% { opacity: 1; transform: scale(1); }
-            100% { opacity: 0; pointer-events: none; display: none; }
-        }
-        @keyframes glitch {
-            0% { transform: translate(0) }
-            20% { transform: translate(-5px, 5px) }
-            40% { transform: translate(-5px, -5px) }
-            60% { transform: translate(5px, 5px) }
-            80% { transform: translate(5px, -5px) }
-            100% { transform: translate(0) }
-        }
-        @keyframes blinker { 50% { opacity: 0; } }
-        </style>
-    </div>
-    <script>
-    setTimeout(() => { document.getElementById('arcade-overlay').style.display = 'none'; }, 3500);
-    </script>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        """
+    <style>
+    @keyframes doneBanner {
+        0%   { opacity: 0; transform: translate(-50%, -14px); }
+        12%  { opacity: 1; transform: translate(-50%, 0); }
+        78%  { opacity: 1; transform: translate(-50%, 0); }
+        100% { opacity: 0; transform: translate(-50%, -6px); visibility: hidden; }
+    }
+    .done-banner {
+        position: fixed; top: 18px; left: 50%; z-index: 999999; pointer-events: none;
+        padding: 14px 26px; min-width: 320px; text-align: center;
+        background: var(--surface-card); color: var(--text-pure);
+        border: 4px solid var(--border-color); box-shadow: var(--card-shadow);
+        font-family: var(--font-heading); font-size: 0.95rem; letter-spacing: 0.02em;
+        animation: doneBanner 1.6s ease-out forwards;
+    }
+    .done-banner b { color: var(--accent-emerald); }
+    .done-banner span { font-family: var(--font-mono); font-size: 1.3rem; color: var(--text-muted); }
+    </style>
+    <div class="done-banner"><b>DONE</b> &middot; ran on __TARGET__<br><span>__TIME__ s round trip</span></div>
+    """.replace("__TARGET__", "EDGE" if is_edge else "CLOUD").replace("__TIME__", f"{total_rtt:.3f}"),
+        unsafe_allow_html=True,
+    )
 
     if worker_data:
         st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)

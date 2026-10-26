@@ -5,18 +5,6 @@ import streamlit as st
 
 def render(ctx) -> None:
     is_dark = ctx.is_dark
-    st.markdown(
-        """
-        <div class="live-bg-container">
-            <div class="live-bg-grid"></div>
-            <div class="live-orb live-orb-1"></div>
-            <div class="live-orb live-orb-2"></div>
-            <div class="live-orb live-orb-3"></div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
     # 5. Global Header Bar: Brand, Clean Unified Navigation & Controls
     header_brand, header_nav, header_ctrl = st.columns([2.8, 6.0, 3.2], gap="medium")
 
@@ -61,16 +49,19 @@ def render(ctx) -> None:
     with header_ctrl:
         theme_col, status_col = st.columns([1.1, 1.3], gap="small")
         with theme_col:
-            new_theme = st.toggle("Dark", value=is_dark, key="theme_toggle")
+            new_theme = st.toggle("Dark mode", value=is_dark, key="theme_toggle")
             if new_theme != is_dark:
                 st.session_state.theme_mode = 'dark' if new_theme else 'light'
                 st.rerun()
         with status_col:
+            state = ctx.cloud_status()
+            color = {"online": "#10B981", "offline": "#DC2626"}.get(state, "var(--text-muted)")
+            label = {"online": "Cloud online", "offline": "Cloud offline"}.get(state, "Cloud not set")
             st.markdown(
-                """
+                f"""
                 <div style="display: flex; justify-content: flex-end; align-items: center; height: 100%; padding-top: 4px;">
-                    <span class="tech-chip" style="color: #10B981; border-color: rgba(16,185,129,0.25);">
-                        <span class="pulse-dot"></span> EC2 Online
+                    <span class="tech-chip" style="color: {color}; border-color: {color};">
+                        <span class="pulse-dot" style="background-color: {color};"></span> {label}
                     </span>
                 </div>
                 """,

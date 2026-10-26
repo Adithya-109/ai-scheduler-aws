@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,11 +11,11 @@
     <div id="scanline"></div>
     <div class="container">
         <div style="text-align: right;">
-            <button id="theme-toggle" class="btn pixel-btn" style="padding: 5px 10px; font-size: 0.6rem;">☀️ LIGHT_MODE</button>
+            <button id="theme-toggle" class="btn pixel-btn" style="padding: 5px 10px; font-size: 0.6rem;">🌙 DARK_MODE</button>
         </div>
         <header>
             <h1 class="glitch" data-text="AI_SCHEDULER">AI_SCHEDULER</h1>
-            <p class="subtitle">>>> CLOUD-EDGE ORCHESTRATION SYSTEM v1.0</p>
+            <p class="subtitle">>>> CLOUD-EDGE ORCHESTRATION SYSTEM v2</p>
         </header>
 
         <section class="hero pixel-box">
@@ -28,37 +28,38 @@
             <div class="hero-text">
                 <h2>SYSTEM INITIALIZED</h2>
                 <p id="typing-text"></p>
-                <a href="http://localhost:8501" class="btn pixel-btn">LAUNCH_DASHBOARD</a>
+                <a href="http://localhost:8501/?tab=playground" class="btn pixel-btn">LAUNCH_DASHBOARD</a>
             </div>
         </section>
 
         <section class="features">
             <div class="feature pixel-box">
                 <h3>[AST PARSER]</h3>
-                <p>Zero-execution syntax tree complexity extraction in <span class="highlight">1.84ms</span>.</p>
+                <p>Estimates a script's cost from its syntax tree without running it. Median <span class="highlight">0.6 ms</span>.</p>
             </div>
             <div class="feature pixel-box">
-                <h3>[WAN PROFILER]</h3>
-                <p>Active network latency modeling. Median RTT: <span class="highlight">109ms</span>.</p>
+                <h3>[LIVE RTT]</h3>
+                <p>Round-trip time to the cloud worker is measured continuously, so the decision tracks the network.</p>
             </div>
             <div class="feature pixel-box">
-                <h3>[DUAL-ENGINE]</h3>
-                <p>99.4% accurate Random Forest & Gradient Boosting routing.</p>
+                <h3>[TWO REGRESSORS]</h3>
+                <p>Gradient-boosted runtime models for edge and cloud, trained only on measured timings. R&sup2; <span class="highlight">0.97</span> on held-out script families.</p>
             </div>
             <div class="feature pixel-box">
-                <h3>[AWS DISPATCH]</h3>
-                <p>Live REST execution on ap-south-2 EC2 instances.</p>
+                <h3>[SAFE DISPATCH]</h3>
+                <p>API-key worker on EC2 with fallback to the local edge and a circuit breaker.</p>
             </div>
         </section>
 
         <section class="metrics pixel-box">
-            <h2>>>> PERFORMANCE_STATS</h2>
+            <h2>>>> MEASURED RESULTS</h2>
             <ul class="stats-list">
-                <li><span class="stat-lbl">LATENCY REDUCTION:</span> <span class="stat-val">44.7%</span></li>
-                <li><span class="stat-lbl">FALSE OFFLOAD RATE:</span> <span class="stat-val">0.6%</span></li>
-                <li><span class="stat-lbl">WAN WASTE:</span> <span class="stat-val">0.0%</span></li>
-                <li><span class="stat-lbl">EDGE ROUTING ACCURACY:</span> <span class="stat-val">100%</span></li>
+                <li><span class="stat-lbl">FASTER THAN ALWAYS-EDGE:</span> <span class="stat-val">23.9%</span></li>
+                <li><span class="stat-lbl">GAP TO PERFECT ROUTING:</span> <span class="stat-val">0.6%</span></li>
+                <li><span class="stat-lbl">CLOUD-FAVOURABLE SCRIPTS CAUGHT:</span> <span class="stat-val">93 / 99</span></li>
+                <li><span class="stat-lbl">SCRIPTS TESTED:</span> <span class="stat-val">633</span></li>
             </ul>
+            <p style="font-size: 0.85rem; margin-top: 12px;">Container test: 0.5-CPU edge vs 4-CPU cloud worker on one machine, simulated 110 ms network delay, whole script families held out. The result depends on the workload mix; it is not an EC2 measurement.</p>
         </section>
 
         <footer>

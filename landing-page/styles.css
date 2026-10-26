@@ -246,3 +246,6 @@ footer {
         font-size: 1.8rem;
     }
 }
+
+/* Light mode: the scanline overlay hurts readability */
+[data-theme="light"] #scanline { display: none; }

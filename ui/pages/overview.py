@@ -192,23 +192,4 @@ def render(ctx) -> None:
             unsafe_allow_html=True
         )
 
-    # Minimalist Bottom CTA Banner with Balanced Margins
-    st.markdown("<div style='margin-top: 3.8rem;'></div>", unsafe_allow_html=True)
-    cta_l, cta_r = st.columns([7.2, 2.8], gap="medium")
-    with cta_l:
-        st.markdown(
-            """
-            <div class="dev-card" style="padding: 1.4rem 1.8rem; height: auto;">
-                <h3 style="font-size: 1.35rem; color: var(--text-pure); margin-bottom: 4px;">Experience Live Hybrid Offloading</h3>
-                <p style="color: var(--text-muted); font-size: 0.92rem; margin: 0;">Profile custom Python code or batch evaluate test suites with live execution telemetry.</p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-    with cta_r:
-        st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
-        if st.button("Open Live Dispatch →", type="primary", use_container_width=True, width="stretch"):
-            st.session_state.current_tab = "playground"
-            st.rerun()
-
     st.markdown("</div>", unsafe_allow_html=True)

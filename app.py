@@ -43,13 +43,25 @@ def get_dispatcher(rtt_ms):
     return build_dispatcher(rtt_ms)
 
 
+@st.cache_data(ttl=15, show_spinner=False)
+def cloud_status():
+    """'online' / 'offline' / 'unset': a 1.5 s health ping, cached for 15 s."""
+    if not config.CLOUD_WORKER_URL:
+        return "unset"
+    try:
+        import requests
+        return "online" if requests.get(config.health_url(config.CLOUD_WORKER_URL), timeout=1.5).ok else "offline"
+    except Exception:
+        return "offline"
+
+
 STAT = get_summary()
 SCHED_VS_EDGE = reporting.fmt_pct(STAT["sched_vs_edge_pct"])
 CLOUD_HOST = config.CLOUD_WORKER_URL.split("//")[-1].split("/")[0] if config.CLOUD_WORKER_URL else "not configured"
 
 st.set_page_config(page_title="AI SCHEDULER", page_icon=None, layout="wide", initial_sidebar_state="collapsed")
 
-for _k, _v in (("current_tab", "overview"), ("theme_mode", "dark"), ("code_preset", "heavy"),
+for _k, _v in (("current_tab", "playground"), ("theme_mode", "light"), ("code_preset", "heavy"),
                ("sim_cloud_rtt", int(STAT["rtt_ms"])), ("last_result", None)):
     st.session_state.setdefault(_k, _v)
 
@@ -73,16 +85,24 @@ st.sidebar.markdown(
         border: 4px solid var(--border-color);
         text-decoration: none;
         box-shadow: 4px 4px 0px var(--bg-canvas);
-    ">⬅️ EXIT TO SYSTEM OS</a>
+    ">⬅️ LANDING PAGE</a>
     ''', unsafe_allow_html=True
 )
+
+# Landing page links here with ?tab=playground so "Launch" opens the dashboard directly.
+_qp = getattr(st, "query_params", None)
+if _qp is not None and "tab_applied" not in st.session_state:
+    st.session_state.tab_applied = True
+    _wanted = _qp.get("tab") if hasattr(_qp, "get") else None
+    if _wanted in ("overview", "playground", "endpoints", "telemetry"):
+        st.session_state.current_tab = _wanted
 
 T = theme.build(st.session_state.theme_mode)
 st.markdown(T.custom_css, unsafe_allow_html=True)
 
 ctx = SimpleNamespace(
     STAT=STAT, SCHED_VS_EDGE=SCHED_VS_EDGE, CLOUD_HOST=CLOUD_HOST,
-    get_scheduler=get_scheduler, get_dispatcher=get_dispatcher, get_summary=get_summary, get_curve=get_curve,
+    get_scheduler=get_scheduler, get_dispatcher=get_dispatcher, cloud_status=cloud_status, get_summary=get_summary, get_curve=get_curve,
     execute_workload=execute_workload, **vars(T))
 
 header.render(ctx)
