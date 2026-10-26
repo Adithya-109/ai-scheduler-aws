@@ -1,0 +1,25 @@
+{
+  "collected_at": "2026-10-26T07:39:23Z",
+  "scripts": 42,
+  "dropped": [],
+  "repeats": 3,
+  "rtt_seconds": 0.0029881251975893974,
+  "edge": {
+    "host": "Adithyas-MacBook-Pro.local",
+    "cpu": "arm",
+    "cpu_count": 10,
+    "python": "3.13.1",
+    "description": "docker --cpus=0.5"
+  },
+  "cloud": {
+    "health": {
+      "status": "ok",
+      "active_jobs": 0,
+      "max_jobs": 1,
+      "cpu_count": 4,
+      "load1": 1.02880859375
+    },
+    "instance_type": "docker --cpus=4 (simulated cloud, local)",
+    "url_host": "configured"
+  }
+}

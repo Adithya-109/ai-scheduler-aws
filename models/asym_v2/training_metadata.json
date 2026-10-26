@@ -1,0 +1,91 @@
+{
+  "model_type": "HistGradientBoostingRegressor (log10 seconds)",
+  "feature_version": 2,
+  "feature_columns": [
+    "num_lines",
+    "num_loops",
+    "max_loop_depth",
+    "num_operations",
+    "has_heavy_lib",
+    "num_function_calls",
+    "num_comprehensions",
+    "has_recursion",
+    "time_bound_s",
+    "log_python_ops",
+    "log_numpy_elems",
+    "log_blas_flops",
+    "estimated_complexity"
+  ],
+  "measured_rtt_seconds": 0.11,
+  "measured_rtt_ms": 110.0,
+  "rtt_source": "cli",
+  "sigma_edge_log10": 0.15773181268165815,
+  "sigma_cloud_log10": 0.12439819903026243,
+  "training_samples": 633,
+  "logged_samples": {
+    "edge": 0,
+    "cloud": 0
+  },
+  "families": [
+    "blaseigh",
+    "blasinv",
+    "blasmm",
+    "blassolve",
+    "blassvd",
+    "comp",
+    "cpuloop",
+    "dict",
+    "ewisebig",
+    "fftbig",
+    "fib",
+    "heavy",
+    "loop",
+    "math",
+    "mixed",
+    "nested",
+    "numpy_matmul",
+    "numpy_ops",
+    "script0",
+    "script1",
+    "script2",
+    "script3",
+    "script4",
+    "script5",
+    "script6",
+    "script7",
+    "sort",
+    "string",
+    "triple"
+  ],
+  "data_file": "data/docker_asym_v2/asym_benchmark.csv",
+  "data_sha256": "3e6ca910aed306af6dd7d0fc210e376af3bc24c902d4916900ebccdd885ee02d",
+  "hardware": {
+    "edge": "docker --cpus=0.5",
+    "cloud": "docker --cpus=4 (simulated cloud, local)"
+  },
+  "trained_at": "2026-10-26T07:49:56Z",
+  "versions": {
+    "scikit-learn": "1.9.1",
+    "numpy": "2.5.3",
+    "python": "3.13.17"
+  },
+  "cv": {
+    "scheme": "GroupKFold(5) by script family, out-of-fold",
+    "edge_r2_log_grouped": 0.9653997283538547,
+    "cloud_r2_log_grouped": 0.9726687402378476,
+    "edge_median_abs_pct_error": 0.04418961472077006,
+    "cloud_median_abs_pct_error": 0.029735970762479903,
+    "sigma_edge_log10": 0.15773181268165815,
+    "sigma_cloud_log10": 0.12439819903026243,
+    "policy_total_seconds": {
+      "oracle": 262.8086,
+      "always_edge": 347.51210000000003,
+      "always_cloud": 316.0493,
+      "scheduler": 264.4872
+    },
+    "scheduler_vs_always_edge_pct": -23.891225658041847,
+    "scheduler_regret_vs_oracle_pct": 0.6387157802294041,
+    "routed_to_cloud": 93,
+    "measured_cloud_wins": 99
+  }
+}

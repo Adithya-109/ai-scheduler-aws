@@ -63,6 +63,20 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class HeavyExtensionTests(unittest.TestCase):
+    def test_v2_is_the_merge_of_v1_and_v1b_and_models_match(self):
+        import pandas as pd
+        d1 = pd.read_csv(DATA)
+        d1b = pd.read_csv(os.path.join(ROOT, "data", "docker_asym_v1b", "asym_benchmark.csv"))
+        v2p = os.path.join(ROOT, "data", "docker_asym_v2", "asym_benchmark.csv")
+        v2 = pd.read_csv(v2p)
+        self.assertEqual(set(v2.file), set(d1.file) | set(d1b.file))
+        self.assertEqual(len(v2), 633)
+        meta = json.load(open(os.path.join(ROOT, "models", "asym_v2", "training_metadata.json")))
+        self.assertEqual(meta["data_sha256"], file_sha256(v2p))
+        self.assertLess(meta["cv"]["scheduler_vs_always_edge_pct"], -10)
+
+
 class MergeTests(unittest.TestCase):
     def _mk(self, d, rows, edge="docker --cpus=0.5"):
         import pandas as pd

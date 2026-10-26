@@ -1,0 +1,7 @@
+scripts=42 families=8 folds=5 simulated RTT=110 ms
+median edge/cloud compute: 0.963s / 0.311s
+measured cloud wins (cloud + RTT < edge): 38/42; routed to cloud: 42
+R2 log10 (held-out families): edge 0.596, cloud 0.619
+policy totals (s): oracle=25.0, always_edge=73.8, always_cloud=25.0, scheduler=25.0
+scheduler vs always-edge: -66.2%   vs oracle: +0.1%
+time saved on 38 scripts: 48.9s; lost on 4: 0.0s; top-10 scripts account for 74% of the movement

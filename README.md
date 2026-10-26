@@ -25,6 +25,10 @@ Everything below is reproduced by `bench/run_benchmarks.py` (full table in
   [`bench/ASYM_RESULTS.md`](bench/ASYM_RESULTS.md)): the cloud wins on 61 scripts and the **scheduler is 6.9% faster than
   always-edge** (254.8 s vs 273.7 s; oracle 237.8 s; 95% bootstrap interval -10.8% to -3.8%, resampling scripts). One run,
   simulated network: not an EC2 measurement. Models: `models/asym/` (`SCHEDULER_MODELS_DIR=models/asym`).
+  With 42 added heavy workloads (dense linear algebra, FFT, large NumPy; [`data/docker_asym_v2`](data/docker_asym_v2),
+  633 scripts) the scheduler is **23.9% faster than always-edge** and 0.6% from the oracle (95% interval -31.4% to -17.2%),
+  but that depends on a mix we wrote to favour the cloud. Models: `models/asym_v2/`. See
+  [`bench/ASYM_RESULTS_v2.md`](bench/ASYM_RESULTS_v2.md).
 * The first version of this project (classifier trained on a synthetic "edge slowdown" label) would have made the same
   workload +36% slower than always-edge; it reported "99.4% accuracy" because it
   re-learned its own label formula. The classifier is gone and nothing is trained on synthetic labels.

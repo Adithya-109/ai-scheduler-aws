@@ -105,7 +105,7 @@ delay is a simulated constant, so this tests compute asymmetry only, not your WA
 ```bash
 MODE=docker EDGE_CPUS=0.5 CLOUD_CPUS=4 REPEATS=3 ./scripts/run_asymmetric_experiment.sh
 # only the heavy, multi-core-friendly workloads (generate_heavy_scripts.py):
-MODE=docker ONLY='blas*,fftbig*,ewisebig*,cpuloop*' EDGE_CPUS=0.5 CLOUD_CPUS=4 REPEATS=3 \
+MODE=docker ONLY="blas*,fftbig*,ewisebig*,cpuloop*" EDGE_CPUS=0.5 CLOUD_CPUS=4 REPEATS=3 \
   ./scripts/run_asymmetric_experiment.sh
 # merge a later run into the dataset (same hardware settings only), retrain, score with error bars:
 python3 scripts/merge_datasets.py data/docker_asym_v1 experiments/<timestamp> --out data/docker_asym_v2

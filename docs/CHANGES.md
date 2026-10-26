@@ -29,6 +29,7 @@ Numbers are in `bench/RESULTS.md`; the audit's baseline run is
 | UI executes through `Dispatcher` (fallback, breaker, live RTT, history, log); Telemetry tab shows the live decision log | `pipeline/reporting.py::live_log_summary`, tests |
 | Terraform for a locked-down EC2 worker (single-CIDR ingress, IMDSv2 hop limit 1, no instance role, encrypted disk) | `deploy/terraform/`, `tests/test_terraform.py` (static only) |
 | Docker asymmetric experiment (0.5-CPU edge vs 4-CPU cloud worker): 591 scripts timed; scheduler -6.9% vs always-edge, bootstrap 95% CI [-10.8%, -3.8%] | `data/docker_asym_v1/`, `models/asym/`, `bench/ASYM_RESULTS.md`, `tests/test_asym.py` |
+| 42 heavy workloads measured and merged (633 scripts): scheduler -23.9% vs always-edge, 0.6% from oracle, CI [-31.4%, -17.2%]; mix-dependent | `data/docker_asym_v1b`, `data/docker_asym_v2`, `models/asym_v2/`, `bench/ASYM_RESULTS_v2.md` |
 | Extractor sizes arrays created by a NumPy `Generator` (`rng.random((n, n))`); no change to any existing training feature | `tests/test_extractor.py::TestGeneratorSizes` |
 | 42 heavy multi-core-friendly workloads, comma-separated `--only`, dataset merge tool that refuses mixed hardware | `generate_heavy_scripts.py`, `scripts/merge_datasets.py`, `tests/test_heavy_scripts.py` |
 | `RESEARCH_PAPER.md` rewritten with the audited numbers and limitations; `.docx` rebuilt from it with pandoc | `scripts/build_docx.sh` |
@@ -36,8 +37,7 @@ Numbers are in `bench/RESULTS.md`; the audit's baseline run is
 ## Not done (needs hardware, an account, or a decision)
 
 * **Measurements on real cloud hardware.** The container experiment (one run, simulated 110 ms delay, one machine) shows a
-  6.9% gain; it does not replace a real instance. Also still to do: repeat it, and measure the 42 new heavy scripts
-  (`ONLY='blas*,fftbig*,ewisebig*,cpuloop*'`, see docs/DEPLOY.md) and merge them in.
+  6.9% gain; it does not replace a real instance. Also still to do: repeat it (and give the edge a full core so single-thread loops become a real control).
   The migrated `hardware_benchmark.csv` (495 rows, similar machines) remains the default dataset.
 * **Validating the Terraform** (`terraform validate` / `plan` / `apply`): no binary was available.
 * **Rotating the exposed EC2 address.** The IP is in git history of `main`; stop or lock down that instance.
