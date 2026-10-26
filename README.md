@@ -55,6 +55,9 @@ flowchart LR
   (`train_model.py`). Confidence is the probability that the chosen side is really faster, from the out-of-fold error.
 * **Dispatcher** (`pipeline/dispatcher.py`): authenticated calls, cloud errors fall back to the edge, a circuit breaker,
   live RTT from `/health` pings, queue-aware routing, a JSONL decision log, optional epsilon-greedy exploration.
+  The Streamlit UI runs every workload through it.
+* **Runtime history** (`pipeline/history.py`): once a script (by content hash) has two clean runs on a side, its observed
+  median replaces the regression there. This covers code the static analyser cannot see through.
 * **Worker** (`worker/`): `runner.py` runs jobs with rlimits, a scrubbed environment and a process-group timeout;
   `worker_server.py` is a thin FastAPI wrapper with an API key and `/health`. See the security note below.
 
@@ -86,16 +89,21 @@ or TLS. Details in [docs/DEPLOY.md](docs/DEPLOY.md).
 ## Develop
 
 ```bash
-python3 -m unittest discover -s tests -t . -v     # ~100 tests
+python3 -m unittest discover -s tests -t . -v
 ruff check .
 python3 bench/run_benchmarks.py                   # writes bench/results.json + RESULTS.md
 python3 train_model.py                            # retrain from hardware_benchmark.csv
+python3 bench/holdout.py                          # unseen-workload run (16 hand-written scripts in holdout/)
+./scripts/build_docx.sh                           # rebuild the .docx from RESEARCH_PAPER.md (pandoc)
 python3 collect_data.py --repeats 5               # re-measure on real hardware (needs CLOUD_WORKER_URL)
 ```
 
 * `tests/test_audit.py`: assertions about what the project claims; `test_extractor.py`: properties of the cost model;
   `test_models.py`: artifact integrity, the routing rule, quality gates; `test_system.py`: worker, dispatcher, collection
-  over real sockets; `test_app_smoke.py`: runs `app.py` against a fake Streamlit.
+  over real sockets; `test_app_smoke.py`: runs `app.py` and the real execution path against a fake Streamlit;
+  `test_history.py`, `test_holdout.py`, `test_terraform.py`: runtime history, the unseen-workload floor, Terraform guards.
+* UI code lives in `ui/` (theme, header, execution, `pages/`); `app.py` only wires state, theme and page dispatch.
+* `deploy/terraform/` builds a locked-down EC2 worker (see docs/DEPLOY.md). It has not been run through `terraform validate`.
 * `hardware_benchmark.csv` is keyed by script filename and features are recomputed from `test_scripts/` on every
   training run, so changing the extractor never leaves stale columns.
   The 495 rows came from migrating the legacy 591-row file (`scripts/migrate_dataset.py`); 96 rows that could not be
@@ -104,9 +112,11 @@ python3 collect_data.py --repeats 5               # re-measure on real hardware 
 ## Known limits
 
 * The migrated timings come from two similar machines; see Status. The scheduler cannot be shown to help until that changes.
-* `RESEARCH_PAPER.md` and `AI_Scheduler_Journal_Paper.docx` still contain the v1 figures (99.4% accuracy, R² 0.972,
-  and the wrong model family). They are not reproducible and should be regenerated from `bench/RESULTS.md` before submission.
-* `app.py` is still one large file, and the Streamlit UI has only been exercised through the fake-Streamlit smoke test.
+* `RESEARCH_PAPER.md` / the `.docx` now report the measured results. The literature survey and references are carried over
+  from the first draft and were not re-verified; check them before submission.
+* The static estimate generalises only moderately: Spearman 0.43 against measured runtime on 16 unseen scripts
+  (`bench/holdout.py`). Loop bounds from `len()` and non-constant `while` bounds are the main misses.
+* The Streamlit UI has only been exercised through the fake-Streamlit smoke test, not a live browser session.
 * The worker HTTP layer (FastAPI) is covered by an equivalent stdlib server in the tests, not by FastAPI itself.
 
 ## Academic context
