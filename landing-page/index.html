@@ -3,61 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Scheduler</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>AI Scheduler | Retro System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <div id="scanline"></div>
     <div class="container">
-        <nav class="topbar">
-            <span class="brand"><span class="dot"></span>AI Scheduler</span>
-            <button id="theme-toggle" class="ghost" type="button">Dark mode</button>
-        </nav>
-
-        <header class="hero">
-            <p class="eyebrow">Hybrid edge and cloud job scheduling</p>
-            <h1>Run each Python job where it finishes first</h1>
-            <p class="lead">The scheduler reads your code, estimates the work, and sends the job to your local
-                machine or to an AWS EC2 instance, whichever is predicted to be faster once network delay is counted.</p>
-            <a href="http://localhost:8501/?tab=playground" class="btn">Open the dashboard</a>
+        <div style="text-align: right;">
+            <button id="theme-toggle" class="btn pixel-btn" style="padding: 5px 10px; font-size: 0.6rem;">🌙 DARK_MODE</button>
+        </div>
+        <header>
+            <h1 class="glitch" data-text="AI_SCHEDULER">AI_SCHEDULER</h1>
+            <p class="subtitle">>>> CLOUD-EDGE ORCHESTRATION SYSTEM v2</p>
         </header>
 
-        <section class="grid">
-            <article class="card">
-                <h3>Reads code, doesn't run it</h3>
-                <p>Cost is estimated from the syntax tree in a median <b>0.6 ms</b>.</p>
-            </article>
-            <article class="card">
-                <h3>Network aware</h3>
-                <p>Round-trip time to the cloud worker is measured and added to the cloud estimate.</p>
-            </article>
-            <article class="card">
-                <h3>Learned from measurements</h3>
-                <p>Two gradient-boosted models, trained on real timings. R&sup2; <b>0.97</b> on held-out script families.</p>
-            </article>
-            <article class="card">
-                <h3>Safe to dispatch</h3>
-                <p>API-key protected worker, automatic fallback to the edge, and a circuit breaker.</p>
-            </article>
+        <section class="hero pixel-box">
+            <div class="avatar">
+                <!-- Retro computer icon -->
+                <div class="monitor">
+                    <div class="screen"><span class="blink">_</span></div>
+                </div>
+            </div>
+            <div class="hero-text">
+                <h2>SYSTEM INITIALIZED</h2>
+                <p id="typing-text"></p>
+                <a href="http://localhost:8501/?tab=playground" class="btn pixel-btn">LAUNCH_DASHBOARD</a>
+            </div>
         </section>
 
-        <section class="results">
-            <h2>Measured results</h2>
-            <div class="stats">
-                <div><span class="num">23.9%</span><span class="lbl">faster than always running on the edge</span></div>
-                <div><span class="num">0.6%</span><span class="lbl">gap to perfect routing</span></div>
-                <div><span class="num">93 / 99</span><span class="lbl">cloud-favourable scripts caught</span></div>
-                <div><span class="num">633</span><span class="lbl">scripts tested</span></div>
+        <section class="features">
+            <div class="feature pixel-box">
+                <h3>[AST PARSER]</h3>
+                <p>Estimates a script's cost from its syntax tree without running it. Median <span class="highlight">0.6 ms</span>.</p>
             </div>
-            <p class="note">Container test: a 0.5-CPU edge worker against a 4-CPU cloud worker on one machine, with a
-                simulated 110 ms network delay and whole script families held out. Results depend on the workload mix
-                and are not an EC2 measurement.</p>
+            <div class="feature pixel-box">
+                <h3>[LIVE RTT]</h3>
+                <p>Round-trip time to the cloud worker is measured continuously, so the decision tracks the network.</p>
+            </div>
+            <div class="feature pixel-box">
+                <h3>[TWO REGRESSORS]</h3>
+                <p>Gradient-boosted runtime models for edge and cloud, trained only on measured timings. R&sup2; <span class="highlight">0.97</span> on held-out script families.</p>
+            </div>
+            <div class="feature pixel-box">
+                <h3>[SAFE DISPATCH]</h3>
+                <p>API-key worker on EC2 with fallback to the local edge and a circuit breaker.</p>
+            </div>
+        </section>
+
+        <section class="metrics pixel-box">
+            <h2>>>> MEASURED RESULTS</h2>
+            <ul class="stats-list">
+                <li><span class="stat-lbl">FASTER THAN ALWAYS-EDGE:</span> <span class="stat-val">23.9%</span></li>
+                <li><span class="stat-lbl">GAP TO PERFECT ROUTING:</span> <span class="stat-val">0.6%</span></li>
+                <li><span class="stat-lbl">CLOUD-FAVOURABLE SCRIPTS CAUGHT:</span> <span class="stat-val">93 / 99</span></li>
+                <li><span class="stat-lbl">SCRIPTS TESTED:</span> <span class="stat-val">633</span></li>
+            </ul>
+            <p style="font-size: 0.85rem; margin-top: 12px;">Container test: 0.5-CPU edge vs 4-CPU cloud worker on one machine, simulated 110 ms network delay, whole script families held out. The result depends on the workload mix; it is not an EC2 measurement.</p>
         </section>
 
         <footer>
-            <p>Built for the VIT Cloud Computing Lab by Team 8</p>
-            <p class="muted">Adithya Binoj Nair &middot; Kushal Goyal &middot; Suriyanarayanan S</p>
+            <p>Made for VIT Cloud Computing Lab by <strong>Team - 8</strong></p>
+            <p style="font-size: 0.9rem; margin-top: -10px;">Adithya Binoj Nair | Kushal Goyal | Suriyanarayanan S</p>
+            <p class="blink" style="margin-top: 20px;">INSERT COIN TO CONTINUE...</p>
         </footer>
     </div>
     <script src="script.js"></script>
