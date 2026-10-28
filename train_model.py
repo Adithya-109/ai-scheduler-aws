@@ -25,7 +25,6 @@ import warnings
 import joblib
 import numpy as np
 import sklearn
-from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.metrics import r2_score
 from sklearn.model_selection import GroupKFold
 
@@ -39,6 +38,7 @@ from pipeline.dataset import (
     policy_totals,
 )
 from pipeline.feature_extractor import FEATURE_COLUMNS, FEATURE_VERSION
+from pipeline.regressor import LinearPlusTreesRegressor
 
 MODELS_DIR = os.path.join(ROOT, "models")
 META_PATH = os.path.join(MODELS_DIR, "training_metadata.json")
@@ -46,12 +46,8 @@ DEFAULT_RTT_S = 0.110
 EPS = 1e-6
 
 
-def make_regressor() -> HistGradientBoostingRegressor:
-    return HistGradientBoostingRegressor(
-        max_iter=300, learning_rate=0.06, max_depth=5, min_samples_leaf=5,
-        l2_regularization=0.1, early_stopping=True, validation_fraction=0.15,
-        n_iter_no_change=20, random_state=42,
-    )
+def make_regressor() -> LinearPlusTreesRegressor:
+    return LinearPlusTreesRegressor()
 
 
 def measure_rtt(url: str, probes: int = 9) -> float | None:
@@ -172,7 +168,7 @@ def main() -> None:
             m = json.load(fh)
         hw = {"edge": m.get("edge", {}).get("description"), "cloud": m.get("cloud", {}).get("instance_type")}
     meta = {
-        "model_type": "HistGradientBoostingRegressor (log10 seconds)",
+        "model_type": "LinearPlusTreesRegressor: Huber on work counters + HistGradientBoosting residual (log10 seconds)",
         "feature_version": FEATURE_VERSION,
         "feature_columns": FEATURE_COLUMNS,
         "measured_rtt_seconds": rtt,

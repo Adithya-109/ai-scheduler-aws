@@ -88,7 +88,7 @@ The analyser parses the source with Python's `ast` module and never executes it.
 
 ### 3.3 Latency models
 
-Two `HistGradientBoostingRegressor`s (depth 5, learning rate 0.06, early stopping on a 15% validation split) predict $\log_{10}$ runtime on the edge and on the cloud from the feature vector. Targets are **measured** times only. Predicting the log makes errors relative, which matches the decision (a ratio), and resolves the six-orders-of-magnitude spread in runtimes. Library versions are recorded in the model metadata and checked on load because scikit-learn pickles are not portable across versions.
+Two regressors predict $\log_{10}$ runtime on the edge and on the cloud from the feature vector. Each is a robust (Huber) linear model on the four static work estimates plus a `HistGradientBoostingRegressor` (depth 5, learning rate 0.1, at most 100 trees, early stopping on a 15% validation split) fitted to the linear model's residual. The linear term lets predictions extrapolate to workloads with more work than any training family; tree ensembles alone predict the largest leaf value they have seen (model comparison: `bench/paper/REPORT.md`, Table 6). Targets are **measured** times only. Predicting the log makes errors relative, which matches the decision (a ratio), and resolves the six-orders-of-magnitude spread in runtimes. Library versions are recorded in the model metadata and checked on load because scikit-learn pickles are not portable across versions.
 
 ### 3.4 Execution layer
 

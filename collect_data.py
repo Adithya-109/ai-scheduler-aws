@@ -24,6 +24,7 @@ import statistics
 import sys
 import time
 
+import numpy as np
 import pandas as pd
 import requests
 
@@ -49,24 +50,30 @@ def run_edge(code: str, timeout: float) -> dict:
 
 
 def run_cloud(code: str, url: str, timeout: float) -> dict:
+    t0 = time.perf_counter()
     r = requests.post(url, json={"code": code}, headers=config.auth_headers(), timeout=timeout + 30)
     r.raise_for_status()
-    return r.json()
+    res = r.json()
+    res["wall_time_seconds"] = time.perf_counter() - t0  # client-side: compute + network + HTTP
+    return res
 
 
 def measure(runner, repeats: int):
-    """Return (median_seconds, stdev_seconds, error_or_None)."""
-    times = []
+    """Return (median_seconds, stdev_seconds, error_or_None, median_wall_seconds_or_None)."""
+    times, walls = [], []
     for _ in range(repeats):
         res = runner()
         if res.get("timed_out") or res.get("returncode", 0) != 0:
-            return None, None, f"returncode={res.get('returncode')} timed_out={res.get('timed_out')}"
+            return None, None, f"returncode={res.get('returncode')} timed_out={res.get('timed_out')}", None
         times.append(res["execution_time_seconds"])
-    return statistics.median(times), (statistics.stdev(times) if len(times) > 1 else 0.0), None
+        if "wall_time_seconds" in res:
+            walls.append(res["wall_time_seconds"])
+    return (statistics.median(times), (statistics.stdev(times) if len(times) > 1 else 0.0), None,
+            statistics.median(walls) if walls else None)
 
 
-def probe_rtt(health_url: str, n: int = 9) -> float | None:
-    samples = []
+def probe_rtt(health_url: str, n: int = 9, samples: list | None = None) -> float | None:
+    samples = [] if samples is None else samples
     for _ in range(n):
         t0 = time.perf_counter()
         try:
@@ -96,28 +103,30 @@ def main() -> int:
     edge_url = config.execute_url(args.edge_url)
     scripts_dir = os.path.join(ROOT, "test_scripts")
     files = sorted(f for f in os.listdir(scripts_dir) if f.endswith(".py") and any(fnmatch.fnmatch(f, pat) for pat in args.only.split(",")))
-    rtt = probe_rtt(config.health_url(config.CLOUD_WORKER_URL))
+    rtt_samples: list[float] = []
+    rtt = probe_rtt(config.health_url(config.CLOUD_WORKER_URL), n=21, samples=rtt_samples)
     print(f"{len(files)} scripts, {args.repeats} repeats per side, RTT={'n/a' if rtt is None else f'{rtt*1000:.1f} ms'}")
 
     rows, dropped = [], []
     for i, name in enumerate(files, 1):
         with open(os.path.join(scripts_dir, name), encoding="utf-8") as fh:
             code = fh.read()
-        e_med, e_sd, e_err = measure(
+        e_med, e_sd, e_err, _ = measure(
             (lambda: run_cloud(code, edge_url, args.timeout)) if edge_url else (lambda: run_edge(code, args.timeout)),
             args.repeats)
         try:
-            c_med, c_sd, c_err = measure(lambda: run_cloud(code, cloud_url, args.timeout), args.repeats)
+            c_med, c_sd, c_err, c_wall = measure(lambda: run_cloud(code, cloud_url, args.timeout), args.repeats)
         except requests.RequestException as ex:
-            c_med = c_sd = None
+            c_med = c_sd = c_wall = None
             c_err = f"{type(ex).__name__}: {ex}"
         if e_err or c_err:
             dropped.append((name, e_err or c_err))
             print(f"[{i}/{len(files)}] {name}: DROPPED ({e_err or c_err})")
             continue
         rows.append({"file": name, "actual_edge_time": e_med, "actual_cloud_time": c_med,
-                     "edge_std": e_sd, "cloud_std": c_sd, "repeats": args.repeats, "source": "collect_data"})
-        print(f"[{i}/{len(files)}] {name}: edge={e_med:.3f}s cloud={c_med:.3f}s")
+                     "edge_std": e_sd, "cloud_std": c_sd, "cloud_wall_time": c_wall,
+                     "repeats": args.repeats, "source": "collect_data"})
+        print(f"[{i}/{len(files)}] {name}: edge={e_med:.3f}s cloud={c_med:.3f}s (end-to-end {c_wall:.3f}s)")
 
     if not rows:
         print("No successful measurements; nothing written.", file=sys.stderr)
@@ -131,6 +140,8 @@ def main() -> int:
     meta = {
         "collected_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "scripts": len(rows), "dropped": dropped, "repeats": args.repeats, "rtt_seconds": rtt,
+        "rtt_p90_seconds": float(np.percentile(rtt_samples, 90)) if rtt_samples else None,
+        "rtt_samples_seconds": rtt_samples,
         "edge": {"host": socket.gethostname(), "cpu": cpu_model(), "cpu_count": os.cpu_count(),
                  "python": platform.python_version(), "description": os.environ.get("EDGE_DESCRIPTION", "")},
         "cloud": {"health": cloud_health, "instance_type": os.environ.get("CLOUD_INSTANCE_TYPE", ""),

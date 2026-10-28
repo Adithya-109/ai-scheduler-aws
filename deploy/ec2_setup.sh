@@ -21,6 +21,7 @@ sudo docker run -d --name scheduler-worker --restart unless-stopped \
   -p 8000:8000 \
   -e WORKER_API_KEY="$WORKER_API_KEY" -e WORKER_HOST=0.0.0.0 \
   -e WORKER_MAX_JOBS="${WORKER_MAX_JOBS:-$(nproc)}" -e WORKER_MEM_MB="${WORKER_MEM_MB:-2048}" \
+  -e OMP_NUM_THREADS="${OMP_NUM_THREADS:-$(nproc)}" \
   --read-only --tmpfs /tmp:size=512m \
   --cap-drop ALL --security-opt no-new-privileges:true --pids-limit 512 \
   scheduler-worker

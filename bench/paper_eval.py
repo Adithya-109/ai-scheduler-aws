@@ -20,6 +20,8 @@ import warnings
 
 import numpy as np
 from scipy import stats
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import HuberRegressor
 from sklearn.metrics import (
     balanced_accuracy_score,
     confusion_matrix,
@@ -30,11 +32,16 @@ from sklearn.metrics import (
     recall_score,
 )
 from sklearn.model_selection import GroupKFold, LeaveOneGroupOut
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.neural_network import MLPRegressor
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 from pipeline.dataset import DATA_FILE, load_benchmark  # noqa: E402
 from pipeline.feature_extractor import FEATURE_COLUMNS  # noqa: E402
+from pipeline.regressor import make_tree_regressor  # noqa: E402
 from train_model import EPS, make_regressor  # noqa: E402
 
 OUT = os.path.join(ROOT, "bench", "paper")
@@ -46,6 +53,13 @@ DATASETS = [  # key, label, csv, rtt seconds, description
     ("asym_v2", "Asymmetric + heavy (633)", os.path.join(ROOT, "data", "docker_asym_v2", "asym_benchmark.csv"), 0.110,
      "asym_v1 plus 42 heavy NumPy/BLAS/FFT workloads"),
 ]
+EC2_CSV = os.path.join(ROOT, "data", "ec2_c7i_flex", "asym_benchmark.csv")
+if os.path.exists(EC2_CSV):  # real-network run (scripts/run_asymmetric_experiment.sh MODE=ec2)
+    with open(os.path.splitext(EC2_CSV)[0] + ".meta.json", encoding="utf-8") as _fh:
+        _m = json.load(_fh)
+    DATASETS.append(("ec2", "Real EC2 c7i-flex.large", EC2_CSV, float(_m["rtt_seconds"]),
+                     f"{_m['edge'].get('description') or 'edge'} vs {_m['cloud'].get('instance_type') or 'EC2'}, "
+                     "real network; cloud scored by measured end-to-end time"))
 POLICIES = ["edge_only", "cloud_only", "random", "heuristic", "scheduler", "oracle"]
 LABEL = {"edge_only": "Edge-only", "cloud_only": "Cloud-only", "random": "Random (p=0.5)",
          "heuristic": "Static threshold", "scheduler": "AI Scheduler", "oracle": "Oracle (bound)"}
@@ -165,7 +179,8 @@ def evaluate(key, label, csv, rtt, desc, B, rng):
     t0 = time.perf_counter()
     df = load_benchmark(csv)
     e, c = df.actual_edge_time.to_numpy(), df.actual_cloud_time.to_numpy()
-    ct = c + rtt
+    # Real-network data: score the cloud by each job's measured end-to-end time; otherwise compute + RTT.
+    ct = df.cloud_wall_time.to_numpy() if "cloud_wall_time" in df.columns else c + rtt
     fam = df.family.to_numpy()
     k = max(2, min(5, df.family.nunique()))
     gkf = GroupKFold(n_splits=k)
@@ -264,6 +279,57 @@ def evaluate(key, label, csv, rtt, desc, B, rng):
                     "real": real, "sched": sched, "fam": fam,
                     "boot_edge": np.array(boot["edge_only"]["samples_script"])},
     }
+
+
+MODELS = {  # name -> factory; every model predicts log10 seconds, the routing rule is the same
+    "Linear (Huber)": lambda: make_pipeline(StandardScaler(), HuberRegressor(max_iter=2000)),
+    "k-NN (k=5)": lambda: make_pipeline(StandardScaler(), KNeighborsRegressor(n_neighbors=5, weights="distance")),
+    "MLP (64-32)": lambda: make_pipeline(StandardScaler(), MLPRegressor(hidden_layer_sizes=(64, 32), max_iter=2000, early_stopping=True,
+                                                                        random_state=0)),
+    "Random Forest": lambda: RandomForestRegressor(n_estimators=300, min_samples_leaf=2, random_state=0, n_jobs=-1),
+    "Gradient-boosted trees (v2.0)": make_tree_regressor,
+    "Linear + trees (current)": make_regressor,
+}
+FEATURE_GROUPS = {
+    "work estimates": ["estimated_complexity", "log_python_ops", "log_numpy_elems", "log_blas_flops"],
+    "loop structure": ["num_loops", "max_loop_depth"],
+    "code size / shape": ["num_lines", "num_operations", "num_function_calls", "num_comprehensions"],
+    "flags (library, recursion, time bound)": ["has_heavy_lib", "has_recursion", "time_bound_s"],
+}
+
+
+def score_model(df, rtt, factory, drop=()):
+    """Out-of-fold (5 grouped folds) routing and regression scores for one model.
+    ``drop`` features are zeroed (constant), which removes them from every model."""
+    X = df[FEATURE_COLUMNS].to_numpy(float).copy()
+    for c in drop:
+        X[:, FEATURE_COLUMNS.index(c)] = 0.0
+    e, c = df.actual_edge_time.to_numpy(), df.actual_cloud_time.to_numpy()
+    ye, yc = np.log10(e + EPS), np.log10(c + EPS)
+    oe, oc = np.zeros(len(df)), np.zeros(len(df))
+    for tr, te in GroupKFold(5).split(X, groups=df.family):
+        oe[te] = factory().fit(X[tr], ye[tr]).predict(X[te])
+        oc[te] = factory().fit(X[tr], yc[tr]).predict(X[te])
+    ch = 10 ** oc - EPS + rtt < 10 ** oe - EPS
+    real = c + rtt < e
+    total = np.where(ch, c + rtt, e).sum()
+    return {"edge_r2_log10": float(r2_score(ye, oe)), "cloud_r2_log10": float(r2_score(yc, oc)),
+            "accuracy": float((ch == real).mean()),
+            "mcc": float(matthews_corrcoef(real, ch)) if real.any() and (~real).any() else float("nan"),
+            "total_s": float(total), "vs_edge_only_pct": float(100 * (total / e.sum() - 1)),
+            "regret_vs_oracle_pct": float(100 * (total / np.minimum(e, c + rtt).sum() - 1))}
+
+
+def model_study(specs):
+    out = {"models": {}, "ablation": {}}
+    for key, _label, csv, rtt, _desc in specs:
+        df = load_benchmark(csv)
+        out["models"][key] = {name: score_model(df, rtt, f) for name, f in MODELS.items()}
+        ab = {"all features": out["models"][key]["Linear + trees (current)"]}
+        for g, cols in FEATURE_GROUPS.items():
+            ab[f"without {g}"] = score_model(df, rtt, make_regressor, drop=cols)
+        out["ablation"][key] = ab
+    return out
 
 
 def decision_overhead(n=200):
@@ -402,6 +468,45 @@ def write_tables(R, tdir):
                     f"{100*lo['accuracy']:.1f}% |")
     md["datasets"] = rows
     _save(tdir, "table5_datasets_robustness", rows, None, None)
+
+    # T6: model comparison (same features, same routing rule, same folds)
+    ms, labels = R["model_study"], {d["key"]: d["label"] for d in R["datasets"]}
+    rows = ["| Model | " + " | ".join(f"{labels[k]}: vs edge / acc / R² edge, cloud" for k in ms["models"]) + " |",
+            "| --- |" + " ---: |" * len(ms["models"])]
+    csv = ["dataset,model,vs_edge_only_pct,regret_vs_oracle_pct,accuracy,mcc,edge_r2_log10,cloud_r2_log10"]
+    tex = [r"\begin{tabular}{l" + "rrr" * len(ms["models"]) + "}", r"\toprule",
+           "Model & " + " & ".join(rf"\multicolumn{{3}}{{c}}{{{labels[k]}}}" for k in ms["models"]) + r" \\",
+           " & " + " & ".join(r"$\Delta$ edge & Acc. & MCC" for _ in ms["models"]) + r" \\", r"\midrule"]
+    for name in MODELS:
+        cells, tcells = [], []
+        for k, by in ms["models"].items():
+            m = by[name]
+            cells.append(f"{m['vs_edge_only_pct']:+.1f}% / {100*m['accuracy']:.1f}% / "
+                         f"{m['edge_r2_log10']:.2f}, {m['cloud_r2_log10']:.2f}")
+            tcells.append(f"{m['vs_edge_only_pct']:+.1f}\\% & {100*m['accuracy']:.1f}\\% & {_num(m['mcc'])}")
+            csv.append(f"{k},{name},{m['vs_edge_only_pct']:.3f},{m['regret_vs_oracle_pct']:.3f},{m['accuracy']:.4f},"
+                       f"{m['mcc']:.4f},{m['edge_r2_log10']:.4f},{m['cloud_r2_log10']:.4f}")
+        nm = f"**{name}**" if "current" in name else name
+        rows.append(f"| {nm} | " + " | ".join(cells) + " |")
+        tex.append((rf"\textbf{{{name}}}" if "current" in name else name) + " & " + " & ".join(tcells) + r" \\")
+    tex += [r"\bottomrule", r"\end{tabular}"]
+    md["models"] = rows
+    _save(tdir, "table6_model_comparison", rows, csv, tex)
+
+    # T7: feature-group ablation of the current model
+    rows = ["| Features | " + " | ".join(f"{labels[k]}: vs edge / acc" for k in ms["ablation"]) + " |",
+            "| --- |" + " ---: |" * len(ms["ablation"])]
+    csv = ["dataset,variant,vs_edge_only_pct,accuracy,mcc,edge_r2_log10,cloud_r2_log10"]
+    for variant in next(iter(ms["ablation"].values())):
+        cells = []
+        for k, by in ms["ablation"].items():
+            m = by[variant]
+            cells.append(f"{m['vs_edge_only_pct']:+.1f}% / {100*m['accuracy']:.1f}%")
+            csv.append(f"{k},{variant},{m['vs_edge_only_pct']:.3f},{m['accuracy']:.4f},{m['mcc']:.4f},"
+                       f"{m['edge_r2_log10']:.4f},{m['cloud_r2_log10']:.4f}")
+        rows.append(f"| {variant} | " + " | ".join(cells) + " |")
+    md["ablation"] = rows
+    _save(tdir, "table7_feature_ablation", rows, csv, None)
     return md
 
 
@@ -603,7 +708,7 @@ def write_figures(R, fdir):
     save(fig, "fig6_rtt_sensitivity")
 
     # Fig 7: per-family time saved vs edge-only (asym_v2).
-    d = ds[-1]
+    d = next(x for x in ds if x["key"] == "asym_v2")
     moved = [r for r in d["per_family"] if abs(r["oracle_s"] / r["edge_only_s"] - 1) >= 0.005
              or abs(r["scheduler_s"] / r["edge_only_s"] - 1) >= 0.005]
     still = [r["family"] for r in d["per_family"] if r not in moved]
@@ -631,7 +736,7 @@ def write_figures(R, fdir):
 
     # Fig 8: bootstrap distribution of the improvement vs edge-only.
     fig, ax = plt.subplots(figsize=(7.5, 3))
-    for d, col in zip(ds, [COL["oracle"], COL["scheduler"], "#6250d6"]):
+    for d, col in zip(ds, [COL["oracle"], COL["scheduler"], "#6250d6", COL["cloud_only"]]):
         s = d["_arrays"]["boot_edge"]
         ax.hist(s, bins=60, color=col, alpha=0.75, label=d["label"], edgecolor=SURF, linewidth=0.5)
     ax.axvline(0, color=INK2, lw=1)
@@ -640,6 +745,62 @@ def write_figures(R, fdir):
     ax.legend()
     ax.set_title("Bootstrap distribution of the improvement over always running on the edge")
     save(fig, "fig8_bootstrap_distribution")
+
+    # Fig 9: model comparison, routing result vs edge-only per dataset (one panel per dataset).
+    ms = R["model_study"]
+    names = list(MODELS)
+    fig, axes = plt.subplots(1, len(ds), figsize=(11, 3.2), sharey=True)
+    for ax, d in zip(axes, ds):
+        vals = [ms["models"][d["key"]][n]["vs_edge_only_pct"] for n in names]
+        y = np.arange(len(names))
+        ax.barh(y, vals, height=0.62, edgecolor=SURF, linewidth=2,
+                color=[COL["scheduler"] if "current" in n else MUTED for n in names])
+        ax.axvline(0, color=AXIS, lw=1)
+        orc = d["policies"]["oracle"]["vs_edge_only_pct"]
+        ax.axvline(orc, color=INK2, lw=1, ls=(0, (2, 2)))
+        ax.text(orc, len(names) - 0.4, " oracle", color=INK2, fontsize=7, va="bottom")
+        span = max(abs(min(vals + [orc])), abs(max(vals + [0]))) or 1
+        for yi, v in zip(y, vals):
+            if v < 0 and -v > span * 0.3:  # long bar: label inside its end, clear of the oracle line
+                ax.text(v + span * 0.03, yi, f"{v:+.1f}%", va="center", ha="left", fontsize=7.5, color="#ffffff")
+            else:
+                ax.text(max(v, 0) + span * 0.03, yi, f"{v:+.1f}%", va="center", ha="left", fontsize=7.5, color=INK2)
+        ax.set_xlim(min(vals + [orc]) - span * 0.12, max(vals + [0]) + span * 0.35)
+        ax.set_yticks(y, names)
+        ax.invert_yaxis()
+        ax.grid(axis="y", visible=False)
+        ax.set_title(d["label"])
+        ax.set_xlabel("Total time vs Edge-only (%)")
+    fig.suptitle("Latency model comparison: same features, same routing rule, families held out (lower is better)",
+                 x=0.01, ha="left", fontsize=11, fontweight="bold", color=INK, y=1.03)
+    fig.tight_layout()
+    save(fig, "fig9_model_comparison")
+
+    # Fig 10: feature-group ablation (change in total time when a group is removed).
+    fig, axes = plt.subplots(1, len(ds), figsize=(11, 2.8), sharey=True)
+    groups = [g for g in next(iter(ms["ablation"].values())) if g != "all features"]
+    for ax, d in zip(axes, ds):
+        ab = ms["ablation"][d["key"]]
+        base = ab["all features"]["total_s"]
+        vals = [100 * (ab[g]["total_s"] / base - 1) for g in groups]
+        y = np.arange(len(groups))
+        ax.barh(y, vals, height=0.62, color=[COL["edge_only"] if v > 0 else COL["scheduler"] for v in vals],
+                edgecolor=SURF, linewidth=2)
+        ax.axvline(0, color=AXIS, lw=1)
+        span = max(max(abs(v) for v in vals), 0.5)
+        for yi, v in zip(y, vals):
+            ax.text(v + (span * 0.04 if v >= 0 else -span * 0.04), yi, f"{v:+.1f}%", va="center",
+                    ha="left" if v >= 0 else "right", fontsize=7.5, color=INK2)
+        ax.set_xlim(min(min(vals), 0) - span * 0.4, max(max(vals), 0) + span * 0.4)
+        ax.set_yticks(y, [g.replace("without ", "") for g in groups])
+        ax.invert_yaxis()
+        ax.grid(axis="y", visible=False)
+        ax.set_title(d["label"])
+        ax.set_xlabel("Extra total time when removed (%)")
+    fig.suptitle("Which features matter: total time after removing each feature group (higher = more important)",
+                 x=0.01, ha="left", fontsize=11, fontweight="bold", color=INK, y=1.04)
+    fig.tight_layout()
+    save(fig, "fig10_feature_ablation")
     return sorted(f for f in os.listdir(fdir) if f.endswith(".png"))
 
 
@@ -650,6 +811,8 @@ def write_report(R, md, figs):
     a2, a1, sh = ds["asym_v2"], ds["asym_v1"], ds["similar_hw"]
     o = R["overhead"]
     h = R.get("holdout")
+
+    ms1 = R["model_study"]["models"]["asym_v1"]
 
     def s(d, p, k="vs_edge_only_pct"):
         return d["policies"][p][k]
@@ -688,13 +851,21 @@ def write_report(R, md, figs):
          f"{sh['cloud_wins']}/{sh['scripts']} jobs once RTT is paid, so there is nothing to gain; the scheduler is "
          f"{s(sh,'scheduler'):+.1f}% vs edge-only and {s(sh,'scheduler','vs_cloud_only_pct'):+.1f}% vs cloud-only.",
          f"* **A tuned one-feature heuristic is a strong baseline.** Offloading whenever the static cost estimate "
-         f"exceeds a threshold (tuned on training folds) is {s(a1,'heuristic'):+.1f}% vs edge-only on the 591-job "
-         f"set, *better* than the AI Scheduler there ({s(a1,'scheduler'):+.1f}%), because the scheduler under-offloads "
-         f"(recall {100*a1['classification']['scheduler']['recall_cloud']:.0f}%). On the 633-job set the scheduler "
-         f"wins ({s(a2,'scheduler'):+.1f}% vs {s(a2,'heuristic'):+.1f}%), with far fewer wrong offloads "
-         f"(precision {100*a2['classification']['scheduler']['precision_cloud']:.0f}% vs "
-         f"{100*a2['classification']['heuristic']['precision_cloud']:.0f}%).",
+         f"exceeds a threshold (tuned on training folds) is {s(a1,'heuristic'):+.1f}% / {s(a2,'heuristic'):+.1f}% vs "
+         f"edge-only on the 591 / 633-job sets; the AI Scheduler is {s(a1,'scheduler'):+.1f}% / "
+         f"{s(a2,'scheduler'):+.1f}%, with far fewer wrong offloads (cloud precision "
+         f"{100*a1['classification']['scheduler']['precision_cloud']:.0f}% / "
+         f"{100*a2['classification']['scheduler']['precision_cloud']:.0f}% vs "
+         f"{100*a1['classification']['heuristic']['precision_cloud']:.0f}% / "
+         f"{100*a2['classification']['heuristic']['precision_cloud']:.0f}%). The previous gradient-boosted-trees model "
+         f"lost to this heuristic on the 591 set ({ms1['Gradient-boosted trees (v2.0)']['vs_edge_only_pct']:+.1f}%): "
+         "trees cannot extrapolate, so a held-out matrix-multiply family was predicted at ~0.07 s instead of up to 4 s "
+         "and never offloaded. The current model adds a linear term on the work estimates (Table 6).",
          f"* **Overhead**: one scheduling decision takes {o['p50_ms']:.1f} ms (p50), {o['p95_ms']:.1f} ms (p95).", "",
+         *([f"* **Real EC2** ({ds['ec2']['description']}, measured RTT {ds['ec2']['rtt_ms']:.0f} ms): AI Scheduler "
+            f"{s(ds['ec2'],'scheduler'):+.1f}% vs edge-only, {s(ds['ec2'],'scheduler','vs_cloud_only_pct'):+.1f}% vs "
+            f"cloud-only, routing accuracy {100*ds['ec2']['classification']['scheduler']['accuracy']:.1f}%.", ""]
+           if "ec2" in ds else []),
          "## Table 1 — Policy comparison (total and per-job completion time)", "",
          "Random is the expectation over 1000 coin-flip assignments. *Regret vs oracle* is how much slower than "
          "an all-knowing router. *Decision acc.* is the share of jobs sent to the node that was really faster.", "",
@@ -718,6 +889,15 @@ def write_report(R, md, figs):
          "## Table 5 — Datasets and robustness to the validation split", "",
          "Leave-one-family-out trains on every family but one and tests on the one left out, for every family.", "",
          *md["datasets"], "",
+         "## Table 6 — Latency model comparison", "",
+         "Every model sees the same 13 static features, predicts log10 seconds on each node, and feeds the same routing "
+         "rule; folds hold out whole script families. Cells: total time vs Edge-only / routing accuracy / R² (edge, "
+         "cloud). *Gradient-boosted trees (v2.0)* is the previous production model; *Linear + trees* adds a robust "
+         "linear term on the work estimates so predictions extrapolate to families with more work than any seen in "
+         "training.", "", *md["models"], "", "![Model comparison](figures/fig9_model_comparison.png)", "",
+         "## Table 7 — Feature-group ablation (current model)", "",
+         "Each row zeroes one group of features and retrains. Larger loss = more important group.", "",
+         *md["ablation"], "", "![Feature ablation](figures/fig10_feature_ablation.png)", "",
          "## Network-latency sensitivity", "",
          "Predictions do not depend on RTT; only the routing rule does, so the sweep re-applies the rule to the same "
          "out-of-fold predictions. Cloud-only degrades linearly with RTT while the scheduler shifts work back "
@@ -780,6 +960,8 @@ def main():
     for spec in DATASETS:
         print(f"evaluating {spec[0]} ...", flush=True)
         R["datasets"].append(evaluate(*spec, B=a.bootstrap, rng=rng))
+    print("model comparison and feature ablation ...", flush=True)
+    R["model_study"] = model_study(DATASETS)
     R["overhead"] = decision_overhead()
     hp = os.path.join(ROOT, "bench", "holdout_results.json")
     if os.path.exists(hp):

@@ -256,9 +256,13 @@ class TestCollectData(unittest.TestCase):
         import pandas as pd
         df = pd.read_csv(out)
         self.assertGreaterEqual(len(df), 2)
-        self.assertTrue({"file", "actual_edge_time", "actual_cloud_time", "edge_std", "repeats"} <= set(df.columns))
+        self.assertTrue({"file", "actual_edge_time", "actual_cloud_time", "edge_std", "repeats",
+                         "cloud_wall_time"} <= set(df.columns))
+        # end-to-end time includes the HTTP round trip, so it can never be below the server-side compute time
+        self.assertTrue((df.cloud_wall_time >= df.actual_cloud_time).all())
         meta = json.load(open(os.path.splitext(out)[0] + ".meta.json"))
         self.assertIn("cpu", meta["edge"])
+        self.assertGreaterEqual(meta["rtt_p90_seconds"], meta["rtt_seconds"])
 
     def test_refuses_without_cloud_url(self):
         import subprocess

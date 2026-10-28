@@ -1,8 +1,8 @@
 | Dataset | Node | R² (log10) | MAE (log10) | Median APE | Within ±25% | Within 2× | Spearman ρ |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Similar hardware | edge | 0.911 | 0.103 | 15.3% | 69.9% | 93.9% | 0.584 |
-| Similar hardware | cloud | 0.889 | 0.116 | 2.9% | 73.3% | 79.0% | 0.703 |
-| Asymmetric (591) | edge | 0.924 | 0.087 | 4.3% | 81.9% | 91.9% | 0.900 |
-| Asymmetric (591) | cloud | 0.941 | 0.064 | 2.4% | 88.7% | 92.9% | 0.887 |
-| Asymmetric + heavy (633) | edge | 0.965 | 0.073 | 4.4% | 81.7% | 93.2% | 0.917 |
-| Asymmetric + heavy (633) | cloud | 0.973 | 0.050 | 3.0% | 88.8% | 95.3% | 0.908 |
+| Similar hardware | edge | 0.886 | 0.107 | 15.1% | 71.1% | 93.5% | 0.645 |
+| Similar hardware | cloud | 0.858 | 0.126 | 2.8% | 72.3% | 83.0% | 0.737 |
+| Asymmetric (591) | edge | 0.794 | 0.118 | 4.6% | 78.8% | 89.3% | 0.904 |
+| Asymmetric (591) | cloud | 0.891 | 0.079 | 2.6% | 85.8% | 92.6% | 0.885 |
+| Asymmetric + heavy (633) | edge | 0.953 | 0.085 | 5.0% | 79.3% | 91.8% | 0.918 |
+| Asymmetric + heavy (633) | cloud | 0.959 | 0.062 | 2.9% | 87.0% | 94.0% | 0.907 |

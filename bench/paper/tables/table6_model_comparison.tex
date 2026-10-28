@@ -1,0 +1,13 @@
+\begin{tabular}{lrrrrrrrrr}
+\toprule
+Model & \multicolumn{3}{c}{Similar hardware} & \multicolumn{3}{c}{Asymmetric (591)} & \multicolumn{3}{c}{Asymmetric + heavy (633)} \\
+ & $\Delta$ edge & Acc. & MCC & $\Delta$ edge & Acc. & MCC & $\Delta$ edge & Acc. & MCC \\
+\midrule
+Linear (Huber) & +0.5\% & 98.8\% & -0.005 & -12.6\% & 95.6\% & 0.785 & -23.3\% & 94.5\% & 0.799 \\
+k-NN (k=5) & +0.0\% & 99.8\% & 0.000 & -10.3\% & 93.7\% & 0.655 & -23.6\% & 94.8\% & 0.813 \\
+MLP (64-32) & +1.0\% & 97.8\% & -0.006 & -10.9\% & 94.2\% & 0.708 & -23.9\% & 94.9\% & 0.830 \\
+Random Forest & +2.1\% & 95.4\% & -0.010 & -12.2\% & 95.8\% & 0.767 & -24.0\% & 95.9\% & 0.846 \\
+Gradient-boosted trees (v2.0) & +3.1\% & 99.4\% & -0.003 & -6.9\% & 93.2\% & 0.590 & -23.9\% & 96.2\% & 0.853 \\
+\textbf{Linear + trees (current)} & +0.0\% & 99.8\% & 0.000 & -12.4\% & 95.8\% & 0.770 & -24.1\% & 96.5\% & 0.867 \\
+\bottomrule
+\end{tabular}

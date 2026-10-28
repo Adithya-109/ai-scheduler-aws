@@ -56,6 +56,8 @@ def load_benchmark(csv_path: str = DATA_FILE, scripts_dir: str = SCRIPTS_DIR) ->
         row.update(file=r["file"], family=family_of(r["file"]),
                    actual_edge_time=float(r["actual_edge_time"]),
                    actual_cloud_time=float(r["actual_cloud_time"]))
+        if "cloud_wall_time" in raw.columns and pd.notna(r["cloud_wall_time"]):
+            row["cloud_wall_time"] = float(r["cloud_wall_time"])
         rows.append(row)
     return pd.DataFrame(rows)
 

@@ -18,27 +18,33 @@ Everything below is reproduced by `bench/run_benchmarks.py` (full table in
   **1**. The two machines are about equally fast, so there is almost nothing to offload.
   Real gains need a real hardware difference between the nodes: [docs/DEPLOY.md](docs/DEPLOY.md).
 * Total wall-clock time over those scripts, whole script families held out:
-  always-edge 106 s, **scheduler 109 s (+3.1%)**,
+  always-edge 106 s, **scheduler 106 s (+0.0%)**,
   always-cloud 183 s (+73%), oracle 106 s.
 * **With a real compute asymmetry** (Docker: edge worker `--cpus=0.5`, cloud worker `--cpus=4`, same machine, simulated
   110 ms delay; 591 scripts, [`data/docker_asym_v1`](data/docker_asym_v1), report in
-  [`bench/ASYM_RESULTS.md`](bench/ASYM_RESULTS.md)): the cloud wins on 61 scripts and the **scheduler is 6.9% faster than
-  always-edge** (254.8 s vs 273.7 s; oracle 237.8 s; 95% bootstrap interval -10.8% to -3.8%, resampling scripts). One run,
+  [`bench/ASYM_RESULTS.md`](bench/ASYM_RESULTS.md)): the cloud wins on 61 scripts and the **scheduler is 12.4% faster than
+  always-edge** (239.7 s vs 273.7 s; oracle 237.8 s; 95% bootstrap interval -18.5% to -7.8%, resampling scripts). One run,
   simulated network: not an EC2 measurement. Models: `models/asym/` (`SCHEDULER_MODELS_DIR=models/asym`).
   With 42 added heavy workloads (dense linear algebra, FFT, large NumPy; [`data/docker_asym_v2`](data/docker_asym_v2),
-  633 scripts) the scheduler is **23.9% faster than always-edge** and 0.6% from the oracle (95% interval -31.4% to -17.2%),
+  633 scripts) the scheduler is **24.1% faster than always-edge** and 0.3% from the oracle (95% interval -31.6% to -17.5%),
   but that depends on a mix we wrote to favour the cloud. Models: `models/asym_v2/`. See
   [`bench/ASYM_RESULTS_v2.md`](bench/ASYM_RESULTS_v2.md).
 * The first version of this project (classifier trained on a synthetic "edge slowdown" label) would have made the same
   workload +36% slower than always-edge; it reported "99.4% accuracy" because it
   re-learned its own label formula. The classifier is gone and nothing is trained on synthetic labels.
-* Latency models (held-out families): R² 0.91 edge / 0.89 cloud on log10 seconds.
-  Median error 3% (cloud) and 15% (edge).
+* Latency models (held-out families, similar-hardware data): R² 0.89 edge / 0.86 cloud on log10 seconds.
+  Median error 3% (cloud) and 15% (edge). On the 633-script set: 0.95 / 0.96.
+* The latency model is a robust linear fit on the static work estimates plus gradient-boosted trees on its residual
+  (`LinearPlusTreesRegressor`, `pipeline/regressor.py`). Trees alone (`HistGradientBoostingRegressor`, the v2.0 model)
+  cannot extrapolate: with the matrix-multiply family held out they predicted 0.07 s for 4 s jobs and never offloaded
+  them, which cost 5 points on the 591-script set (-6.9% vs -12.4% now).
 * Against every baseline (edge-only, cloud-only, random, a tuned static-cost threshold, oracle) on all three datasets,
   with routing accuracy, MCC, significance tests and figures: [`bench/paper/REPORT.md`](bench/paper/REPORT.md).
-  The one-feature threshold beats the scheduler on the 591-script set (-10.8% vs -6.9%); the scheduler wins on the 633-script set.
-* Speed: feature extraction 0.63 ms, a full scheduling decision
-  3.6 ms (p50).
+  A tuned one-feature threshold is a strong baseline (-10.8% / -22.3%); the scheduler beats it on both asymmetric sets
+  (-12.4% / -24.1%) with far fewer wrong offloads. Among six model families no single one wins everywhere (a plain
+  linear model is best on the 591 set at -12.6%); the current one has the best average and the highest routing accuracy.
+* Speed: feature extraction 0.23 ms, a full scheduling decision 8.4 ms (p50) on the development Mac
+  (`bench/RESULTS.md`; about half of it is the tree ensembles' single-row predict).
 
 ## How it works
 
@@ -63,7 +69,7 @@ flowchart LR
   own `range()` bound, comprehensions, user-function call sites, recursion (`fib(35)` vs `fib(20)`), NumPy array sizes
   (matmul/linalg as flops, sort/FFT as n log n), and time-bounded busy-waits. Unknown bounds fall back to documented
   defaults. It cannot follow data-dependent control flow, classes beyond simple methods, or I/O.
-* **Predictor** (`pipeline/predictor.py`): two `HistGradientBoostingRegressor`s on log10 seconds, trained on measured times only
+* **Predictor** (`pipeline/predictor.py`): two `LinearPlusTreesRegressor`s (Huber + HistGradientBoosting residual) on log10 seconds, trained on measured times only
   (`train_model.py`). Confidence is the probability that the chosen side is really faster, from the out-of-fold error.
 * **Dispatcher** (`pipeline/dispatcher.py`): authenticated calls, cloud errors fall back to the edge, a circuit breaker,
   live RTT from `/health` pings, queue-aware routing, a JSONL decision log, optional epsilon-greedy exploration.

@@ -1,5 +1,5 @@
 {
-  "model_type": "HistGradientBoostingRegressor (log10 seconds)",
+  "model_type": "LinearPlusTreesRegressor: Huber on work counters + HistGradientBoosting residual (log10 seconds)",
   "feature_version": 2,
   "feature_columns": [
     "num_lines",
@@ -19,8 +19,8 @@
   "measured_rtt_seconds": 0.11,
   "measured_rtt_ms": 110.0,
   "rtt_source": "cli",
-  "sigma_edge_log10": 0.21836413757712667,
-  "sigma_cloud_log10": 0.1776715522072635,
+  "sigma_edge_log10": 0.3609899213714598,
+  "sigma_cloud_log10": 0.24165254218271204,
   "training_samples": 591,
   "logged_samples": {
     "edge": 0,
@@ -55,29 +55,29 @@
     "edge": "docker --cpus=0.5",
     "cloud": "docker --cpus=4 (simulated cloud, local)"
   },
-  "trained_at": "2026-10-26T07:21:25Z",
+  "trained_at": "2026-10-28T19:21:20Z",
   "versions": {
     "scikit-learn": "1.9.1",
     "numpy": "2.5.3",
-    "python": "3.13.17"
+    "python": "3.13.1"
   },
   "cv": {
     "scheme": "GroupKFold(5) by script family, out-of-fold",
-    "edge_r2_log_grouped": 0.9242476845739659,
-    "cloud_r2_log_grouped": 0.9411974608603331,
-    "edge_median_abs_pct_error": 0.04348700929120062,
-    "cloud_median_abs_pct_error": 0.02426371776792759,
-    "sigma_edge_log10": 0.21836413757712667,
-    "sigma_cloud_log10": 0.1776715522072635,
+    "edge_r2_log_grouped": 0.7939419126603844,
+    "cloud_r2_log_grouped": 0.8906672580393211,
+    "edge_median_abs_pct_error": 0.045957053903287824,
+    "cloud_median_abs_pct_error": 0.026267672738123485,
+    "sigma_edge_log10": 0.3609899213714598,
+    "sigma_cloud_log10": 0.24165254218271204,
     "policy_total_seconds": {
       "oracle": 237.83749999999998,
       "always_edge": 273.6743,
       "always_cloud": 291.05719999999997,
-      "scheduler": 254.82989999999998
+      "scheduler": 239.7192
     },
-    "scheduler_vs_always_edge_pct": -6.885703188059688,
-    "scheduler_regret_vs_oracle_pct": 7.14454196667893,
-    "routed_to_cloud": 43,
+    "scheduler_vs_always_edge_pct": -12.407120434764984,
+    "scheduler_regret_vs_oracle_pct": 0.7911704420034749,
+    "routed_to_cloud": 60,
     "measured_cloud_wins": 61
   }
 }

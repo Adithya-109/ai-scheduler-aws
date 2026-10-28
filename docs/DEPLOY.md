@@ -117,3 +117,35 @@ SCHEDULER_MODELS_DIR=models/asym_v2 streamlit run app.py     # run the app with 
 
 Give Docker Desktop at least as many CPUs as `CLOUD_CPUS` (Settings, Resources) and keep the machine otherwise idle
 while it runs. If `docker` is not found in Terminal, add `/Applications/Docker.app/Contents/Resources/bin` to `PATH`.
+
+## 7. Real EC2 run (Docker edge on this machine, c7i-flex.large cloud)
+
+The measurement the paper needs: the same weak edge as section 6, but the cloud is a real instance over the real
+network. The RTT is measured, and every cloud job's client-side end-to-end time is recorded (`cloud_wall_time`), so the
+cloud is scored on what it actually cost, not compute + a constant.
+
+1. **Launch** (EC2 console, region ap-south-1): Ubuntu Server 24.04 LTS, `c7i-flex.large`, 20 GB gp3, no IAM role.
+   Network: new security group, inbound **Custom TCP 8000 from My IP** only (add SSH 22 from My IP only if you want
+   to log in). Advanced details: IMDSv2 *Required*, and paste `deploy/ec2_user_data.sh` into *User data* after
+   replacing the placeholder with the `WORKER_API_KEY` from your `.env`.
+2. **Wait ~5 minutes**, then check from this machine:
+   `curl http://<public-ip>:8000/health` should print `{"status":"ok",...,"cpu_count":2}`.
+3. **Point `.env` at it**: `CLOUD_WORKER_URL=http://<public-ip>:8000`.
+4. **Start Docker Desktop**, close other heavy apps, then run (about 60-90 minutes for all 633 scripts):
+
+   ```bash
+   MODE=ec2 CLOUD_INSTANCE_TYPE=c7i-flex.large EDGE_CPUS=0.5 REPEATS=3 ./scripts/run_asymmetric_experiment.sh
+   ```
+
+   A quick smoke test first: add `ONLY="fib_2*,blasmm*"`.
+5. **Stop or terminate the instance** as soon as it finishes.
+6. **Import and score**:
+
+   ```bash
+   mkdir -p data/ec2_c7i_flex && cp experiments/<timestamp>/asym_benchmark.* data/ec2_c7i_flex/
+   python3 train_model.py --data data/ec2_c7i_flex/asym_benchmark.csv --out-dir models/ec2 \
+     --rtt-ms "$(python3 -c "import json;print(1000*json.load(open('data/ec2_c7i_flex/asym_benchmark.meta.json'))['rtt_seconds'])")"
+   python3 bench/paper_eval.py      # adds a "Real EC2" column to every table and figure
+   ```
+
+The worker port is plain HTTP: keep the security group on your IP, and terminate the instance after the run.
