@@ -22,3 +22,6 @@ logs/
 *.tfstate*
 .terraform/
 terraform.tfvars
+
+# Raw asymmetric-experiment runs (import the ones you keep into data/ with scripts/merge_datasets.py)
+experiments/

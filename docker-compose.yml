@@ -1,5 +1,6 @@
 # Local edge worker, hardened and optionally throttled so it behaves like a
 # weaker machine:   EDGE_CPUS=0.5 EDGE_MEM=512m docker compose up --build
+# EDGE_PORT (default 8000) moves the host port, e.g. when a local worker already holds 8000.
 # Requires WORKER_API_KEY in .env (the worker refuses to start on 0.0.0.0 without it).
 services:
   edge-worker:
@@ -11,7 +12,7 @@ services:
       WORKER_HOST: 0.0.0.0
       WORKER_MAX_JOBS: ${EDGE_MAX_JOBS:-2}
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:${EDGE_PORT:-8000}:8000"
     read_only: true
     tmpfs:
       - /tmp:size=256m

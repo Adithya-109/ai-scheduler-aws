@@ -58,6 +58,7 @@ class TestRunner(unittest.TestCase):
             del os.environ["WORKER_API_KEY"]
         self.assertEqual(r["stdout"].strip(), "[]")
 
+    @unittest.skipIf(sys.platform == "darwin", "macOS does not enforce RLIMIT_AS; run the worker in Docker/Linux")
     def test_memory_limit(self):
         r = run_job("x = bytearray(3 * 1024**3)", Limits(mem_mb=256))
         self.assertNotEqual(r["returncode"], 0)
@@ -261,8 +262,8 @@ class TestCollectData(unittest.TestCase):
 
     def test_refuses_without_cloud_url(self):
         import subprocess
-        env = {k: v for k, v in os.environ.items() if k != "CLOUD_WORKER_URL"}
-        env["HOME"] = tempfile.mkdtemp()
+        # Empty rather than absent: config.py fills unset variables from the repo's .env.
+        env = dict(os.environ, CLOUD_WORKER_URL="", HOME=tempfile.mkdtemp())
         r = subprocess.run([sys.executable, os.path.join(ROOT, "collect_data.py")],
                            capture_output=True, text=True, env=env, cwd=tempfile.mkdtemp(), timeout=60)
         self.assertEqual(r.returncode, 2)

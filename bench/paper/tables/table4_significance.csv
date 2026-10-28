@@ -1,0 +1,10 @@
+dataset,comparison,delta_pct,ci_script_lo,ci_script_hi,ci_family_lo,ci_family_hi,p_value,rank_biserial,wins,losses
+similar_hw,edge_only,3.114,0.000,8.525,0.000,14.492,nan,nan,0,0
+similar_hw,cloud_only,-40.265,-48.634,-32.945,-59.655,-27.797,1.77e-82,-1.0000,492,1
+similar_hw,heuristic,3.114,0.000,8.390,0.000,13.940,nan,nan,0,0
+asym_v1,edge_only,-6.886,-11.058,-3.692,-18.497,-1.891,8.08e-06,-0.7336,32,11
+asym_v1,cloud_only,-12.447,-18.258,-7.517,-24.662,0.600,2.6e-73,-0.8929,519,29
+asym_v1,heuristic,4.395,0.334,10.151,-1.597,21.705,0.00721,-0.3548,56,20
+asym_v2,edge_only,-23.891,-31.565,-17.080,-45.335,-10.984,2.07e-15,-0.9478,84,9
+asym_v2,cloud_only,-16.315,-20.492,-13.290,-26.628,-10.429,2.01e-85,-0.9727,525,15
+asym_v2,heuristic,-2.014,-2.856,-1.348,-3.025,-0.666,6.32e-10,-0.8006,68,11

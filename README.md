@@ -34,6 +34,9 @@ Everything below is reproduced by `bench/run_benchmarks.py` (full table in
   re-learned its own label formula. The classifier is gone and nothing is trained on synthetic labels.
 * Latency models (held-out families): R² 0.91 edge / 0.89 cloud on log10 seconds.
   Median error 3% (cloud) and 15% (edge).
+* Against every baseline (edge-only, cloud-only, random, a tuned static-cost threshold, oracle) on all three datasets,
+  with routing accuracy, MCC, significance tests and figures: [`bench/paper/REPORT.md`](bench/paper/REPORT.md).
+  The one-feature threshold beats the scheduler on the 591-script set (-10.8% vs -6.9%); the scheduler wins on the 633-script set.
 * Speed: feature extraction 0.63 ms, a full scheduling decision
   3.6 ms (p50).
 
@@ -102,6 +105,7 @@ python3 -m unittest discover -s tests -t . -v
 ruff check .
 python3 bench/run_benchmarks.py                   # writes bench/results.json + RESULTS.md
 python3 train_model.py                            # retrain from hardware_benchmark.csv
+python3 bench/paper_eval.py                       # baselines, accuracy, stats, figures -> bench/paper/ (needs requirements-dev)
 python3 bench/holdout.py                          # unseen-workload run (16 hand-written scripts in holdout/)
 ./scripts/build_docx.sh                           # rebuild the .docx from RESEARCH_PAPER.md (pandoc)
 python3 collect_data.py --repeats 5               # re-measure on real hardware (needs CLOUD_WORKER_URL)

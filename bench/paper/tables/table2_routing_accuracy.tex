@@ -1,0 +1,17 @@
+\begin{tabular}{llrrrrrrr}
+\toprule
+Dataset & Subset & $n$ & Acc. & Majority & Bal. acc. & Prec. & Rec. & MCC \\
+\midrule
+Similar hardware & AI Scheduler, all & 495 & 99.4\% & 99.8\% & 49.8\% & 0.0\% & 0.0\% & -0.003 \\
+ & AI Scheduler, decisive & 465 & 99.6\% & 100.0\% & n/a & 0.0\% & 0.0\% & n/a \\
+ & Static threshold, all & 495 & 99.8\% & 99.8\% & 50.0\% & 0.0\% & 0.0\% & 0.000 \\
+\midrule
+Asymmetric (591) & AI Scheduler, all & 591 & 93.2\% & 89.7\% & 75.2\% & 74.4\% & 52.5\% & 0.590 \\
+ & AI Scheduler, decisive & 521 & 95.4\% & 90.2\% & 80.0\% & 88.6\% & 60.8\% & 0.711 \\
+ & Static threshold, all & 591 & 87.1\% & 89.7\% & 84.1\% & 43.4\% & 80.3\% & 0.528 \\
+\midrule
+Asymmetric + heavy (633) & AI Scheduler, all & 633 & 96.2\% & 84.4\% & 91.6\% & 90.3\% & 84.8\% & 0.853 \\
+ & AI Scheduler, decisive & 559 & 97.9\% & 84.1\% & 94.6\% & 96.4\% & 89.9\% & 0.918 \\
+ & Static threshold, all & 633 & 87.2\% & 84.4\% & 88.7\% & 55.6\% & 90.9\% & 0.644 \\
+\bottomrule
+\end{tabular}
