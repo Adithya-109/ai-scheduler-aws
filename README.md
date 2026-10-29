@@ -29,6 +29,11 @@ Everything below is reproduced by `bench/run_benchmarks.py` (full table in
   633 scripts) the scheduler is **24.1% faster than always-edge** and 0.3% from the oracle (95% interval -31.6% to -17.5%),
   but that depends on a mix we wrote to favour the cloud. Models: `models/asym_v2/`. See
   [`bench/ASYM_RESULTS_v2.md`](bench/ASYM_RESULTS_v2.md).
+* **On real EC2** (edge: Docker `--cpus=0.5` on the Mac; cloud: c7i-flex.large in ap-south-1, measured RTT 155 ms;
+  633 scripts, [`data/ec2_c7i_flex`](data/ec2_c7i_flex)), scored on each cloud job's measured end-to-end time: the
+  scheduler is **23.2% faster than always-edge** (95% interval -30.9% to -15.8%) and 27.9% faster than always-cloud,
+  routing accuracy 95.6%, 1.5% from the oracle. Always-cloud is 6.6% *slower* than always-edge there. Models: `models/ec2/`.
+  Among six model families the current one is mid-pack on this set (random-forest model -23.8%), within 0.6 points of the best.
 * The first version of this project (classifier trained on a synthetic "edge slowdown" label) would have made the same
   workload +36% slower than always-edge; it reported "99.4% accuracy" because it
   re-learned its own label formula. The classifier is gone and nothing is trained on synthetic labels.

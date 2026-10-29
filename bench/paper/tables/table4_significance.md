@@ -9,3 +9,6 @@
 | Asymmetric + heavy (633) | AI Scheduler vs Edge-only | -24.1% [-31.9, -17.2] | [-45.5, -11.2] | < 1e-10 | -0.947 | 87 / 10 |
 | Asymmetric + heavy (633) | AI Scheduler vs Cloud-only | -16.6% [-20.7, -13.5] | [-26.9, -10.7] | < 1e-10 | -0.984 | 524 / 12 |
 | Asymmetric + heavy (633) | AI Scheduler vs Static threshold | -2.3% [-3.1, -1.7] | [-3.3, -1.4] | < 1e-10 | -0.865 | 70 / 11 |
+| Real EC2 c7i-flex.large | AI Scheduler vs Edge-only | -23.2% [-30.9, -15.8] | [-43.7, -10.0] | < 1e-10 | -0.841 | 72 / 18 |
+| Real EC2 c7i-flex.large | AI Scheduler vs Cloud-only | -27.9% [-33.7, -23.4] | [-40.1, -19.2] | < 1e-10 | -0.978 | 533 / 10 |
+| Real EC2 c7i-flex.large | AI Scheduler vs Static threshold | -5.3% [-7.1, -3.6] | [-7.1, -2.1] | < 1e-10 | -0.836 | 75 / 10 |

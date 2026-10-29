@@ -2,15 +2,20 @@ dataset,variant,vs_edge_only_pct,accuracy,mcc,edge_r2_log10,cloud_r2_log10
 similar_hw,all features,0.000,0.9980,0.0000,0.8864,0.8578
 asym_v1,all features,-12.407,0.9577,0.7699,0.7939,0.8907
 asym_v2,all features,-24.120,0.9652,0.8673,0.9526,0.9592
+ec2,all features,-23.175,0.9558,0.8129,0.9268,0.9585
 similar_hw,without work estimates,0.000,0.9980,0.0000,0.7466,0.5851
 asym_v1,without work estimates,-3.719,0.9019,0.3626,0.8474,0.8801
 asym_v2,without work estimates,-17.367,0.9021,0.6198,0.8297,0.8705
+ec2,without work estimates,-16.728,0.9147,0.6418,0.8266,0.8678
 similar_hw,without loop structure,0.564,0.9859,-0.0050,0.9080,0.8734
 asym_v1,without loop structure,-12.364,0.9594,0.7719,0.7983,0.8843
 asym_v2,without loop structure,-23.743,0.9621,0.8552,0.9460,0.9620
+ec2,without loop structure,-23.363,0.9573,0.8285,0.9321,0.9602
 similar_hw,without code size / shape,0.735,0.9818,-0.0058,0.9001,0.8574
 asym_v1,without code size / shape,-12.788,0.9628,0.8084,0.8180,0.8937
 asym_v2,without code size / shape,-23.998,0.9637,0.8617,0.9374,0.9500
+ec2,without code size / shape,-23.216,0.9589,0.8363,0.9309,0.9437
 similar_hw,without flags (library, recursion, time bound),0.908,0.9778,-0.0065,0.8687,0.8540
 asym_v1,without flags (library, recursion, time bound),-10.662,0.9526,0.7225,0.7917,0.8732
 asym_v2,without flags (library, recursion, time bound),-19.622,0.9431,0.7725,0.9475,0.9578
+ec2,without flags (library, recursion, time bound),-22.922,0.9542,0.8074,0.9333,0.9579

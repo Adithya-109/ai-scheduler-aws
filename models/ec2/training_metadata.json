@@ -1,0 +1,91 @@
+{
+  "model_type": "LinearPlusTreesRegressor: Huber on work counters + HistGradientBoosting residual (log10 seconds)",
+  "feature_version": 2,
+  "feature_columns": [
+    "num_lines",
+    "num_loops",
+    "max_loop_depth",
+    "num_operations",
+    "has_heavy_lib",
+    "num_function_calls",
+    "num_comprehensions",
+    "has_recursion",
+    "time_bound_s",
+    "log_python_ops",
+    "log_numpy_elems",
+    "log_blas_flops",
+    "estimated_complexity"
+  ],
+  "measured_rtt_seconds": 0.15492266695946455,
+  "measured_rtt_ms": 154.9,
+  "rtt_source": "cli",
+  "sigma_edge_log10": 0.21639212622826778,
+  "sigma_cloud_log10": 0.15157912808275298,
+  "training_samples": 633,
+  "logged_samples": {
+    "edge": 0,
+    "cloud": 0
+  },
+  "families": [
+    "blaseigh",
+    "blasinv",
+    "blasmm",
+    "blassolve",
+    "blassvd",
+    "comp",
+    "cpuloop",
+    "dict",
+    "ewisebig",
+    "fftbig",
+    "fib",
+    "heavy",
+    "loop",
+    "math",
+    "mixed",
+    "nested",
+    "numpy_matmul",
+    "numpy_ops",
+    "script0",
+    "script1",
+    "script2",
+    "script3",
+    "script4",
+    "script5",
+    "script6",
+    "script7",
+    "sort",
+    "string",
+    "triple"
+  ],
+  "data_file": "data/ec2_c7i_flex/asym_benchmark.csv",
+  "data_sha256": "149653d5116f7519096af802a08a4974ffb444ed3f98f7f4c5f977d3df1aeec9",
+  "hardware": {
+    "edge": "docker --cpus=0.5",
+    "cloud": "c7i-flex.large"
+  },
+  "trained_at": "2026-10-29T10:39:49Z",
+  "versions": {
+    "scikit-learn": "1.9.1",
+    "numpy": "2.5.3",
+    "python": "3.13.1"
+  },
+  "cv": {
+    "scheme": "GroupKFold(5) by script family, out-of-fold",
+    "edge_r2_log_grouped": 0.9268453758156019,
+    "cloud_r2_log_grouped": 0.9584816698841235,
+    "edge_median_abs_pct_error": 0.20981175057216864,
+    "cloud_median_abs_pct_error": 0.018006229576873072,
+    "sigma_edge_log10": 0.21639212622826778,
+    "sigma_cloud_log10": 0.15157912808275298,
+    "policy_total_seconds": {
+      "oracle": 271.4788400263518,
+      "always_edge": 365.7537,
+      "always_cloud": 344.45144818534106,
+      "scheduler": 274.74224002635185
+    },
+    "scheduler_vs_always_edge_pct": -24.883264331611176,
+    "scheduler_regret_vs_oracle_pct": 1.2020826373367655,
+    "routed_to_cloud": 90,
+    "measured_cloud_wins": 90
+  }
+}

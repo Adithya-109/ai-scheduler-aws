@@ -311,13 +311,14 @@ def score_model(df, rtt, factory, drop=()):
         oe[te] = factory().fit(X[tr], ye[tr]).predict(X[te])
         oc[te] = factory().fit(X[tr], yc[tr]).predict(X[te])
     ch = 10 ** oc - EPS + rtt < 10 ** oe - EPS
-    real = c + rtt < e
-    total = np.where(ch, c + rtt, e).sum()
+    ct = df.cloud_wall_time.to_numpy() if "cloud_wall_time" in df.columns else c + rtt  # as in evaluate()
+    real = ct < e
+    total = np.where(ch, ct, e).sum()
     return {"edge_r2_log10": float(r2_score(ye, oe)), "cloud_r2_log10": float(r2_score(yc, oc)),
             "accuracy": float((ch == real).mean()),
             "mcc": float(matthews_corrcoef(real, ch)) if real.any() and (~real).any() else float("nan"),
             "total_s": float(total), "vs_edge_only_pct": float(100 * (total / e.sum() - 1)),
-            "regret_vs_oracle_pct": float(100 * (total / np.minimum(e, c + rtt).sum() - 1))}
+            "regret_vs_oracle_pct": float(100 * (total / np.minimum(e, ct).sum() - 1))}
 
 
 def model_study(specs):
@@ -758,7 +759,7 @@ def write_figures(R, fdir):
         ax.axvline(0, color=AXIS, lw=1)
         orc = d["policies"]["oracle"]["vs_edge_only_pct"]
         ax.axvline(orc, color=INK2, lw=1, ls=(0, (2, 2)))
-        ax.text(orc, len(names) - 0.4, " oracle", color=INK2, fontsize=7, va="bottom")
+        ax.text(orc, 0.01, " oracle", color=INK2, fontsize=7, va="bottom", transform=ax.get_xaxis_transform())
         span = max(abs(min(vals + [orc])), abs(max(vals + [0]))) or 1
         for yi, v in zip(y, vals):
             if v < 0 and -v > span * 0.3:  # long bar: label inside its end, clear of the oracle line

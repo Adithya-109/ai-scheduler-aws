@@ -81,7 +81,7 @@ else
 fi
 
 export WORKER_API_KEY="$KEY" EDGE_DESCRIPTION="$DESC_E" CLOUD_INSTANCE_TYPE="$DESC_C"
-"$PY" collect_data.py --repeats "$REPEATS" --only "$ONLY" --edge-url "http://127.0.0.1:$EDGE_PORT" \
+PYTHONUNBUFFERED=1 "$PY" collect_data.py --repeats "$REPEATS" --only "$ONLY" --edge-url "http://127.0.0.1:$EDGE_PORT" \
   --output "$OUT/asym_benchmark.csv" | tee "$OUT/collect.log" | tail -3
 
 if [ "$MODE" = ec2 ]; then  # score with the RTT measured during collection, not a simulated one
