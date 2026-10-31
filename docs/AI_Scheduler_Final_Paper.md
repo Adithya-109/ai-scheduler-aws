@@ -294,29 +294,6 @@ Fig. 6. Existing versus proposed methodology on real EC2: (a) routing accuracy, 
 
 Inference. AI Scheduler (Proposed) clearly outperforms the static threshold: routing accuracy rises from 85.3 % to 95.6 %, cloud-offload precision from 46.5 % to 80.0 % (the threshold sends many short programs to the cloud for nothing), MCC from 0.568 to 0.813, and the mean turnaround reduction from 18.9 % to 23.2 %. Always offloading is 6.6 % slower than never offloading, so neither fixed policy is a substitute for a per-program decision. A decision takes 5.2 ms, which is negligible next to the 155 ms round trip. Against edge-only, cloud-only and the threshold, the gains of AI Scheduler (Proposed) are statistically significant (paired Wilcoxon tests on per-program times, p < 10⁻¹⁰; 95 % bootstrap interval for the reduction versus edge-only 15.8–30.9 %).
 
-### 5.2 Robustness Across Testbeds and Network Delay
-
-Table VIII repeats the evaluation on three further testbeds: the project's original measurements on two similar machines (where offloading almost never pays), and two Docker configurations with a 0.5-CPU edge and a 4-CPU "cloud" with a simulated 110 ms delay.
-
-TABLE VIII. AI SCHEDULER (PROPOSED) ACROSS TESTBEDS (FAMILIES HELD OUT)
-
-| Testbed | Scripts | Cloud faster | AI Scheduler (Proposed) vs edge-only | vs cloud-only | Gap to oracle | Routing accuracy | MCC |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Similar hardware | 495 | 1 | +0.0 % | -42.1 % | +0.0 % | 99.8 % | 0.000 |
-| Docker asymmetric | 591 | 61 | -12.4 % | -17.6 % | +0.8 % | 95.8 % | 0.770 |
-| Docker asym. + heavy | 633 | 99 | -24.1 % | -16.6 % | +0.3 % | 96.5 % | 0.867 |
-| Real EC2 | 633 | 82 | -23.2 % | -27.9 % | +1.5 % | 95.6 % | 0.813 |
-
-When the tiers are equally fast, AI Scheduler (Proposed) correctly keeps everything at the edge and matches edge-only; when the cloud is faster, it captures most of the available gain, within 0.3–1.5 % of the oracle on the asymmetric testbeds (Fig. 7). Re-applying the routing rule to the same EC2 predictions at different network delays (Fig. 8) shows the expected behaviour: at 10 ms AI Scheduler (Proposed) offloads 43 % of programs, at 110 ms 16 %, and at 500 ms 10 %, beating both fixed policies from 10 ms upward (below that, cloud-only is marginally better), while cloud-only degrades linearly with delay. In this sweep cloud time is computed as measured compute time plus the swept delay.
-
-![Fig. 7](paper_figures/fig3_policy_total_time.png)
-
-Fig. 7. Total completion time of all programs by routing policy on each testbed (lower is better).
-
-![Fig. 8](paper_figures/fig6_rtt_sensitivity.png)
-
-Fig. 8. Total completion time as the network round trip varies (vertical line: the delay used elsewhere in the paper).
-
 ## 6. Conclusions
 
 We introduced AI Scheduler, an orchestrator with four modules: Code Analysis, Network Check, Prediction and Routing, and Execution and Report. It combines zero-execution AST cost estimation, live network-delay measurement, latency models with a robust linear term that extrapolates to heavier programs, and a shared REST execution layer that supports single-file and multi-file batch submission. On 633 programs measured on a CPU-limited edge and a real AWS EC2 c7i-flex.large over a 155 ms network, with whole program families held out, AI Scheduler (Proposed) routed 95.6 % of programs to the faster tier (MCC 0.813), reduced total turnaround by 23.2 % against always running at the edge and 27.9 % against always offloading, stayed within 1.5 % of an oracle, and decided in about 5 ms. Multi-file batches of 25 programs or more finished faster than edge-only in over 90 % of cases. Future work includes placement across several edge and cloud nodes, parallel batch execution, GPU and container-based offloading, energy- and cost-aware objectives, graph-based code representations as in [19], [22], [30], and online retraining from the stored decision log.
