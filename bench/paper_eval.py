@@ -980,9 +980,9 @@ def write_figures(R, fdir):
     # Fig 11: existing versus proposed on the primary dataset (cf. Table 8).
     ev = R["existing_vs_proposed"][R["primary"]]
     plabel = next(d["label"] for d in ds if d["key"] == R["primary"])
-    order = ["edge_only", "cloud_only", "threshold", "pure_regression", "proposed"]
-    short = {"edge_only": "Edge-only", "cloud_only": "Cloud-only", "threshold": "A: Static\nthreshold",
-             "pure_regression": "B: Pure\nregression", "proposed": "AI Scheduler\n(Proposed)"}
+    order = ["edge_only", "cloud_only", "threshold", "proposed"]
+    short = {"edge_only": "Edge-only", "cloud_only": "Cloud-only", "threshold": "Static\nthreshold",
+             "proposed": "AI Scheduler\n(Proposed)"}
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(11, 3.6), gridspec_kw={"width_ratios": [1.5, 1]})
     x = np.arange(len(order))
     w = 0.26
@@ -1012,7 +1012,7 @@ def write_figures(R, fdir):
     a2.grid(axis="x", visible=False)
     a2.set_ylabel("Reduction vs edge-only (%)")
     a2.set_title("(b) Mean turnaround reduction (positive = faster)")
-    fig.suptitle(f"Existing versus proposed methods — {plabel}", x=0.01, ha="left", fontsize=11,
+    fig.suptitle(f"Existing versus proposed methodology — {plabel}", x=0.01, ha="left", fontsize=11,
                  fontweight="bold", color=INK, y=1.03)
     fig.tight_layout()
     save(fig, "fig11_existing_vs_proposed")

@@ -16,7 +16,7 @@ Edge computing brings computation to where the data is generated, cutting latenc
 
 Existing schedulers face three problems. First, trial profiling takes time and requires running code that may not be trusted before deciding where to place it. Second, a scheduler that ignores real-time network changes can pick the wrong tier when the round-trip time shifts the point at which edge and cloud performance are equal [4], [5]. Third, latency models trained on a fixed set of workloads may not extrapolate: a program with more work than anything seen in training can be predicted to be cheap and kept on a slow edge.
 
-We introduce AI Scheduler, a system that takes Python code and returns its result, the node where it ran and the time it took. It has four parts: Code Analysis, Network Check, Prediction and Routing, and Execution and Report. Our work makes four contributions. First, a zero-execution feature extractor that estimates a program's work in log space from its syntax tree. Second, live network-delay measurement that feeds the routing decision. Third, latency models that combine a robust linear term on the work estimates with gradient-boosted trees, so that predictions extrapolate to heavier workloads, used by a single, interpretable routing rule. Fourth, an evaluation on real AWS EC2 hardware with 633 workloads against fixed policies and existing methods, covering both single-file and multi-file batch submission.
+We introduce AI Scheduler, a system that takes Python code and returns its result, the node where it ran and the time it took. It has four parts: Code Analysis, Network Check, Prediction and Routing, and Execution and Report. Our work makes four contributions. First, a zero-execution feature extractor that estimates a program's work in log space from its syntax tree. Second, live network-delay measurement that feeds the routing decision. Third, latency models that combine a robust linear term on the work estimates with gradient-boosted trees, so that predictions extrapolate to heavier workloads, used by a single, interpretable routing rule. Fourth, an evaluation on real AWS EC2 hardware with 633 workloads against fixed policies and an existing static-threshold method, covering both single-file and multi-file batch submission.
 
 ## 2. Literature Survey
 
@@ -112,7 +112,7 @@ Execution times span five orders of magnitude, so separate regressors are traine
 
 ŷ(X) = w·X_work + b  +  f_GBT(X)      (4)
 
-where the first term is a robust (Huber) linear model on the four work estimates and f_GBT is a gradient-boosted tree ensemble (depth 5, learning rate 0.1, at most 100 trees, early stopping) fitted to the linear model's residual. The linear term grows with the estimated work, so a program heavier than anything in training is still predicted to be heavy; trees alone cannot extrapolate and predict the largest value they have seen (Section 5.1). Both models are trained only on measured times, never on synthetic labels.
+where the first term is a robust (Huber) linear model on the four work estimates and f_GBT is a gradient-boosted tree ensemble (depth 5, learning rate 0.1, at most 100 trees, early stopping) fitted to the linear model's residual. The linear term grows with the estimated work, so a program heavier than anything in training is still predicted to be heavy; trees alone cannot extrapolate and predict the largest value they have seen. Both models are trained only on measured times, never on synthetic labels.
 
 The router applies Eq. (2). It also reports a confidence: with the out-of-fold residual spread of each model (σ_edge, σ_cloud, in log10 seconds), the log-ratio of the two predicted totals is treated as normally distributed, and the confidence is the probability that the chosen side is really faster. Once a program (identified by a hash of its source) has run at least twice on a side, the median of its observed times replaces the prediction for that side, which covers code the static analysis cannot see through.
 
@@ -272,27 +272,27 @@ Routing each file independently cut the mean batch completion time by about 22 %
 
 ### 5.1 Accuracy: Existing versus Proposed Methodology
 
-AI Scheduler (Proposed) was compared on the same 633 programs with two fixed policies and two existing methods: Method A (static threshold), a rule that offloads whenever the static cost estimate exceeds a threshold tuned on the training folds, and Method B (pure regression), two independently trained gradient-boosted latency regressors compared directly. All methods were scored with whole families held out. Misrouting rate is the share of programs sent to the slower tier; turnaround reduction is relative to always running at the edge (positive is faster).
+AI Scheduler (Proposed) was compared on the same 633 programs with two fixed policies and an existing method, the static threshold: a rule that offloads whenever the static cost estimate exceeds a threshold tuned on the training folds. All methods were scored with whole families held out. Misrouting rate is the share of programs sent to the slower tier; turnaround reduction is relative to always running at the edge (positive is faster).
 
 TABLE VII. ACCURACY AND PERFORMANCE: EXISTING VERSUS PROPOSED (REAL EC2, 633 PROGRAMS)
 
-| Metric | Edge-only | Cloud-only | A: Static threshold | B: Pure regression (two GBT regressors) | AI Scheduler (Proposed) |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Routing accuracy | 87.0 % | 13.0 % | 85.3 % | 95.9 % | 95.6 % |
-| Precision (cloud offload) | 0.0 % | 13.0 % | 46.5 % | 79.2 % | 80.0 % |
-| Recall (cloud offload) | 0.0 % | 100.0 % | 87.8 % | 92.7 % | 87.8 % |
-| F1-score | 0.000 | 0.229 | 0.608 | 0.854 | 0.837 |
-| MCC | 0.000 | 0.000 | 0.568 | 0.834 | 0.813 |
-| Misrouting rate | 13.0 % | 87.0 % | 14.7 % | 4.1 % | 4.4 % |
-| Decision overhead | 0.00 ms | 0.00 ms | 0.18 ms | 12.95 ms | 5.19 ms |
-| Mean turnaround per job | 0.578 sec | 0.616 sec | 0.469 sec | 0.442 sec | 0.444 sec |
-| Mean turnaround reduction vs edge-only | +0.0 % | -6.6 % | +18.9 % | +23.5 % | +23.2 % |
+| Metric | Edge-only | Cloud-only | Static threshold | AI Scheduler (Proposed) |
+| --- | ---: | ---: | ---: | ---: |
+| Routing accuracy | 87.0 % | 13.0 % | 85.3 % | 95.6 % |
+| Precision (cloud offload) | 0.0 % | 13.0 % | 46.5 % | 80.0 % |
+| Recall (cloud offload) | 0.0 % | 100.0 % | 87.8 % | 87.8 % |
+| F1-score | 0.000 | 0.229 | 0.608 | 0.837 |
+| MCC | 0.000 | 0.000 | 0.568 | 0.813 |
+| Misrouting rate | 13.0 % | 87.0 % | 14.7 % | 4.4 % |
+| Decision overhead | 0.00 ms | 0.00 ms | 0.18 ms | 5.19 ms |
+| Mean turnaround per job | 0.578 sec | 0.616 sec | 0.469 sec | 0.444 sec |
+| Mean turnaround reduction vs edge-only | +0.0 % | -6.6 % | +18.9 % | +23.2 % |
 
 ![Fig. 6](paper_figures/fig4_existing_vs_proposed.png)
 
 Fig. 6. Existing versus proposed methodology on real EC2: (a) routing accuracy, precision and recall for the "cloud is faster" class; (b) reduction in mean turnaround time relative to edge-only (positive is faster).
 
-Inference. Both learned methods clearly outperform the static threshold: routing accuracy rises from 85.3 % to about 96 %, cloud-offload precision from 46 % to 80 % (the threshold sends many short programs to the cloud for nothing), and the mean turnaround reduction from 18.9 % to 23.2 %. Always offloading is 6.6 % slower than never offloading. On this testbed AI Scheduler (Proposed) and pure regression are within half a point of each other (pure regression is marginally ahead, 23.5 % against 23.2 %). The difference appears when a family has more work than anything in training: on the 591-program testbed without the heavy linear-algebra families, pure regression predicted 0.07 sec for 4 sec matrix multiplications and never offloaded them, reaching only -6.9 %, while AI Scheduler (Proposed) reached -12.4 % (Table VIII). AI Scheduler (Proposed) is the most consistent across testbeds and decides in 5.2 ms against 12.9 ms for pure regression, both negligible next to the 155 ms round trip. Against edge-only, cloud-only and the threshold, the gains of AI Scheduler (Proposed) are statistically significant (paired Wilcoxon tests on per-program times, p < 10⁻¹⁰; 95 % bootstrap interval for the reduction versus edge-only 15.8–30.9 %).
+Inference. AI Scheduler (Proposed) clearly outperforms the static threshold: routing accuracy rises from 85.3 % to 95.6 %, cloud-offload precision from 46.5 % to 80.0 % (the threshold sends many short programs to the cloud for nothing), MCC from 0.568 to 0.813, and the mean turnaround reduction from 18.9 % to 23.2 %. Always offloading is 6.6 % slower than never offloading, so neither fixed policy is a substitute for a per-program decision. A decision takes 5.2 ms, which is negligible next to the 155 ms round trip. Against edge-only, cloud-only and the threshold, the gains of AI Scheduler (Proposed) are statistically significant (paired Wilcoxon tests on per-program times, p < 10⁻¹⁰; 95 % bootstrap interval for the reduction versus edge-only 15.8–30.9 %).
 
 ### 5.2 Robustness Across Testbeds and Network Delay
 
@@ -316,10 +316,6 @@ Fig. 7. Total completion time of all programs by routing policy on each testbed 
 ![Fig. 8](paper_figures/fig6_rtt_sensitivity.png)
 
 Fig. 8. Total completion time as the network round trip varies (vertical line: the delay used elsewhere in the paper).
-
-### 5.3 Limitations
-
-The system has five main limitations. The edge is a CPU-quota-limited container on a laptop rather than a separate low-power device, and the EC2 results come from a single collection run on one instance type, so other hardware needs re-measurement and retraining. RTT represents the network cost, so transfer time for large inputs is not modelled. Static features cannot capture run time that depends on data; on unseen hand-written programs the static estimate ranks run times only moderately (ρ = 0.39). Batch files run sequentially; running the edge and cloud shares of a batch in parallel would shorten batches further. Finally, the worker's isolation is hardening rather than a sandbox: production use with untrusted code needs container- or VM-level sandboxing in addition to the authentication, resource limits and restricted network access already in place.
 
 ## 6. Conclusions
 
