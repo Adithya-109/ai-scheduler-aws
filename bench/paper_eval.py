@@ -276,7 +276,8 @@ def evaluate(key, label, csv, rtt, desc, B, rng):
                                  "cloud_r2_log10": regression(c, pc1)["r2_log10"]},
         "per_family": per_family, "rtt_sweep": sweep, "seconds_to_run": time.perf_counter() - t0,
         "_arrays": {"e": e, "c": c, "ct": ct, "pe": pe, "pc": pc, "lat": lat, "rnd": rnd[0],
-                    "real": real, "sched": sched, "fam": fam,
+                    "real": real, "sched": sched, "fam": fam, "files": df.file.to_numpy(),
+                    "heur": choose["heuristic"],
                     "boot_edge": np.array(boot["edge_only"]["samples_script"])},
     }
 
@@ -314,8 +315,12 @@ def score_model(df, rtt, factory, drop=()):
     ct = df.cloud_wall_time.to_numpy() if "cloud_wall_time" in df.columns else c + rtt  # as in evaluate()
     real = ct < e
     total = np.where(ch, ct, e).sum()
+    zero = {"zero_division": 0}
     return {"edge_r2_log10": float(r2_score(ye, oe)), "cloud_r2_log10": float(r2_score(yc, oc)),
             "accuracy": float((ch == real).mean()),
+            "precision_cloud": float(precision_score(real, ch, **zero)),
+            "recall_cloud": float(recall_score(real, ch, **zero)), "f1_cloud": float(f1_score(real, ch, **zero)),
+            "mean_s": float(total / len(e)),
             "mcc": float(matthews_corrcoef(real, ch)) if real.any() and (~real).any() else float("nan"),
             "total_s": float(total), "vs_edge_only_pct": float(100 * (total / e.sum() - 1)),
             "regret_vs_oracle_pct": float(100 * (total / np.minimum(e, ct).sum() - 1))}
@@ -330,6 +335,104 @@ def model_study(specs):
         for g, cols in FEATURE_GROUPS.items():
             ab[f"without {g}"] = score_model(df, rtt, make_regressor, drop=cols)
         out["ablation"][key] = ab
+    return out
+
+
+def method_overheads(n=200):
+    """p50 decision time (ms) of each routing method on the same scripts."""
+    from pipeline.feature_extractor import CodeFeatureExtractor
+    from pipeline.scheduler import OffloadingScheduler
+    files = sorted(f for f in os.listdir(os.path.join(ROOT, "test_scripts")) if f.endswith(".py"))[:n]
+    codes = [open(os.path.join(ROOT, "test_scripts", f), encoding="utf-8").read() for f in files]
+    df = load_benchmark(DATASETS[-1][2])
+    X = df[FEATURE_COLUMNS].to_numpy(float)
+    te = make_tree_regressor().fit(X, np.log10(df.actual_edge_time + EPS))
+    tc = make_tree_regressor().fit(X, np.log10(df.actual_cloud_time + EPS))
+    ex, sch = CodeFeatureExtractor(), OffloadingScheduler()
+
+    def p50(fn):
+        for code in codes[:20]:
+            fn(code)
+        lat = []
+        for code in codes:
+            t = time.perf_counter()
+            fn(code)
+            lat.append((time.perf_counter() - t) * 1e3)
+        return float(np.percentile(lat, 50))
+
+    def regression_only(code):
+        x = np.array([[ex.analyze(code).get(k, 0.0) for k in FEATURE_COLUMNS]], dtype=float)
+        return te.predict(x)[0] > tc.predict(x)[0]
+
+    return {"edge_only": 0.0, "cloud_only": 0.0,
+            "threshold": p50(lambda code: ex.analyze(code)["estimated_complexity"] > 6),
+            "pure_regression": p50(regression_only), "proposed": p50(sch.schedule)}
+
+
+def existing_vs_proposed(R):
+    """Table VI-style comparison: fixed policies, two existing methods, and the proposed scheduler."""
+    out = {}
+    for d in R["datasets"]:
+        A, n = d["_arrays"], d["scripts"]
+        real = A["real"]
+        gbt = R["model_study"]["models"][d["key"]]["Gradient-boosted trees (v2.0)"]
+        rows = {}
+        for key, name, cls, mean_s in (
+                ("edge_only", "Edge-only", classification(real, np.zeros(n, bool)), d["policies"]["edge_only"]["mean_s"]),
+                ("cloud_only", "Cloud-only", classification(real, np.ones(n, bool)), d["policies"]["cloud_only"]["mean_s"]),
+                ("threshold", "A: Static threshold", d["classification"]["heuristic"],
+                 d["policies"]["heuristic"]["mean_s"]),
+                ("pure_regression", "B: Pure regression (two GBT regressors)",
+                 {"accuracy": gbt["accuracy"], "precision_cloud": gbt["precision_cloud"],
+                  "recall_cloud": gbt["recall_cloud"], "f1_cloud": gbt["f1_cloud"], "mcc": gbt["mcc"]}, gbt["mean_s"]),
+                ("proposed", "Proposed AI Scheduler", d["classification"]["scheduler"],
+                 d["policies"]["scheduler"]["mean_s"])):
+            base = d["policies"]["edge_only"]["mean_s"]
+            rows[key] = {"name": name, "accuracy": cls["accuracy"], "precision": cls["precision_cloud"],
+                         "recall": cls["recall_cloud"], "f1": cls["f1_cloud"], "mcc": cls["mcc"],
+                         "misrouting": 1 - cls["accuracy"], "overhead_ms": R["method_overhead_ms"][key],
+                         "mean_turnaround_s": mean_s, "turnaround_reduction_pct": 100 * (1 - mean_s / base)}
+        out[d["key"]] = rows
+    return out
+
+
+SINGLE_FILE_EXAMPLES = ["numpy_matmul_2000.py", "blassvd_1000.py", "nested_2000x3000.py", "fib_35.py",
+                        "sort_1000000.py", "dict_1000000.py", "fib_33.py", "string_250000.py", "fib_24.py",
+                        "string_50000.py", "script_001.py"]
+
+
+def single_file_examples(d):
+    """Per-script view of single submissions: held-out predictions vs the measured outcome on both nodes."""
+    A = d["_arrays"]
+    idx = {f: i for i, f in enumerate(A["files"])}
+    rows = []
+    for f in SINGLE_FILE_EXAMPLES:
+        if f not in idx:
+            continue
+        i = idx[f]
+        rows.append({"file": f, "pred_edge_s": float(A["pe"][i]), "pred_cloud_s": float(A["pc"][i] + d["rtt_ms"] / 1000),
+                     "edge_s": float(A["e"][i]), "cloud_total_s": float(A["ct"][i]),
+                     "routed": "Cloud" if A["sched"][i] else "Edge", "faster": "Cloud" if A["real"][i] else "Edge",
+                     "time_s": float(A["lat"]["scheduler"][i])})
+    return rows
+
+
+def batch_study(d, rng, sizes=(1, 5, 10, 25, 50, 100), draws=2000):
+    """Multi-file submissions: random batches of uploaded scripts, run one after another as the dashboard does."""
+    A = d["_arrays"]
+    lat = {"edge_only": A["e"], "cloud_only": A["ct"], "heuristic": A["lat"]["heuristic"],
+           "scheduler": A["lat"]["scheduler"], "oracle": A["lat"]["oracle"]}
+    out = []
+    for k in sizes:
+        pick = np.stack([rng.choice(len(A["e"]), k, replace=False) for _ in range(draws)])
+        tot = {p: v[pick].sum(1) for p, v in lat.items()}
+        best_fixed = np.minimum(tot["edge_only"], tot["cloud_only"])
+        out.append({"size": k, **{f"{p}_mean_s": float(t.mean()) for p, t in tot.items()},
+                    **{f"{p}_p95_s": float(np.percentile(t, 95)) for p, t in tot.items()},
+                    "sched_beats_edge_pct": float(100 * (tot["scheduler"] < tot["edge_only"] - 1e-9).mean()),
+                    "sched_beats_both_fixed_pct": float(100 * (tot["scheduler"] < best_fixed - 1e-9).mean()),
+                    "sched_not_worse_than_best_fixed_pct": float(100 * (tot["scheduler"] <= best_fixed + 1e-9).mean()),
+                    "sched_vs_edge_mean_pct": float(100 * (tot["scheduler"].mean() / tot["edge_only"].mean() - 1))})
     return out
 
 
@@ -508,6 +611,77 @@ def write_tables(R, tdir):
         rows.append(f"| {variant} | " + " | ".join(cells) + " |")
     md["ablation"] = rows
     _save(tdir, "table7_feature_ablation", rows, csv, None)
+
+    # T8: existing versus proposed (one block per dataset; the paper's main comparison table)
+    order = ["edge_only", "cloud_only", "threshold", "pure_regression", "proposed"]
+    metrics = [("Routing accuracy", lambda m: f"{100*m['accuracy']:.1f} %"),
+               ("Precision (cloud offload)", lambda m: f"{100*m['precision']:.1f} %"),
+               ("Recall (cloud offload)", lambda m: f"{100*m['recall']:.1f} %"),
+               ("F1-score", lambda m: f"{m['f1']:.3f}"),
+               ("MCC", lambda m: _num(m["mcc"])),
+               ("Misrouting rate", lambda m: f"{100*m['misrouting']:.1f} %"),
+               ("Decision overhead", lambda m: f"{m['overhead_ms']:.2f} ms"),
+               ("Mean turnaround per job", lambda m: f"{m['mean_turnaround_s']:.3f} s"),
+               ("Mean turnaround reduction vs edge-only", lambda m: f"{m['turnaround_reduction_pct']:+.1f} %")]
+    rows, csv = [], ["dataset,method,accuracy,precision,recall,f1,mcc,misrouting,overhead_ms,mean_turnaround_s,"
+                     "turnaround_reduction_pct"]
+    tex = []
+    for d in R["datasets"]:
+        ev = R["existing_vs_proposed"][d["key"]]
+        rows += [f"**{d['label']}** ({d['scripts']} scripts)", "",
+                 "| Metric | " + " | ".join(ev[k]["name"] for k in order) + " |",
+                 "| --- |" + " ---: |" * len(order)]
+        for label, f in metrics:
+            rows.append(f"| {label} | " + " | ".join(
+                (f"**{f(ev[k])}**" if k == "proposed" else f(ev[k])) for k in order) + " |")
+        rows.append("")
+        for k in order:
+            m = ev[k]
+            csv.append(f"{d['key']},{m['name']},{m['accuracy']:.4f},{m['precision']:.4f},{m['recall']:.4f},{m['f1']:.4f},"
+                       f"{m['mcc']:.4f},{m['misrouting']:.4f},{m['overhead_ms']:.3f},{m['mean_turnaround_s']:.4f},"
+                       f"{m['turnaround_reduction_pct']:.3f}")
+        if d["key"] == R["primary"]:
+            tex = [r"\begin{tabular}{lrrrrr}", r"\toprule",
+                   "Metric & Edge-only & Cloud-only & A: Threshold & B: Regression & \\textbf{Proposed} \\\\",
+                   r"\midrule"]
+            for label, f in metrics:
+                tex.append(f"{label} & " + " & ".join(
+                    (rf"\textbf{{{f(ev[k])}}}" if k == "proposed" else f(ev[k])).replace("%", r"\%") for k in order)
+                    + r" \\")
+            tex += [r"\bottomrule", r"\end{tabular}"]
+    md["existing_vs_proposed"] = rows
+    _save(tdir, "table8_existing_vs_proposed", rows, csv, tex)
+
+    # T9: single-file submissions (held-out predictions vs measured outcome on both nodes)
+    rows = ["| Workload | Pred. edge (s) | Pred. cloud incl. RTT (s) | Routed to | Measured edge (s) | "
+            "Measured cloud end-to-end (s) | Faster node | Correct |",
+            "| --- | ---: | ---: | :---: | ---: | ---: | :---: | :---: |"]
+    csv = ["file,pred_edge_s,pred_cloud_s,routed,edge_s,cloud_total_s,faster"]
+    for r in R["single_file"]:
+        rows.append(f"| `{r['file']}` | {r['pred_edge_s']:.3f} | {r['pred_cloud_s']:.3f} | {r['routed']} | "
+                    f"{r['edge_s']:.3f} | {r['cloud_total_s']:.3f} | {r['faster']} | "
+                    f"{'yes' if r['routed'] == r['faster'] else 'no'} |")
+        csv.append(f"{r['file']},{r['pred_edge_s']:.4f},{r['pred_cloud_s']:.4f},{r['routed']},{r['edge_s']:.4f},"
+                   f"{r['cloud_total_s']:.4f},{r['faster']}")
+    md["single_file"] = rows
+    _save(tdir, "table9_single_file", rows, csv, None)
+
+    # T10: multi-file batch submissions
+    rows = ["| Files per batch | Edge-only (s) | Cloud-only (s) | Static threshold (s) | AI Scheduler (s) | Oracle (s) | "
+            "Scheduler vs edge-only | Batches where scheduler beats edge-only | ...beats both fixed policies |",
+            "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"]
+    csv = ["size,edge_only_mean_s,cloud_only_mean_s,heuristic_mean_s,scheduler_mean_s,oracle_mean_s,"
+           "sched_vs_edge_mean_pct,sched_beats_edge_pct,sched_beats_both_fixed_pct"]
+    for b in R["batch"]:
+        rows.append(f"| {b['size']} | {b['edge_only_mean_s']:.2f} | {b['cloud_only_mean_s']:.2f} | "
+                    f"{b['heuristic_mean_s']:.2f} | **{b['scheduler_mean_s']:.2f}** | {b['oracle_mean_s']:.2f} | "
+                    f"{b['sched_vs_edge_mean_pct']:+.1f}% | {b['sched_beats_edge_pct']:.0f}% | "
+                    f"{b['sched_beats_both_fixed_pct']:.0f}% |")
+        csv.append(f"{b['size']},{b['edge_only_mean_s']:.4f},{b['cloud_only_mean_s']:.4f},{b['heuristic_mean_s']:.4f},"
+                   f"{b['scheduler_mean_s']:.4f},{b['oracle_mean_s']:.4f},{b['sched_vs_edge_mean_pct']:.3f},"
+                   f"{b['sched_beats_edge_pct']:.2f},{b['sched_beats_both_fixed_pct']:.2f}")
+    md["batch"] = rows
+    _save(tdir, "table10_batch_submission", rows, csv, None)
     return md
 
 
@@ -802,6 +976,75 @@ def write_figures(R, fdir):
                  x=0.01, ha="left", fontsize=11, fontweight="bold", color=INK, y=1.04)
     fig.tight_layout()
     save(fig, "fig10_feature_ablation")
+
+    # Fig 11: existing versus proposed on the primary dataset (cf. Table 8).
+    ev = R["existing_vs_proposed"][R["primary"]]
+    plabel = next(d["label"] for d in ds if d["key"] == R["primary"])
+    order = ["edge_only", "cloud_only", "threshold", "pure_regression", "proposed"]
+    short = {"edge_only": "Edge-only", "cloud_only": "Cloud-only", "threshold": "A: Static\nthreshold",
+             "pure_regression": "B: Pure\nregression", "proposed": "Proposed\nAI Scheduler"}
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(11, 3.6), gridspec_kw={"width_ratios": [1.5, 1]})
+    x = np.arange(len(order))
+    w = 0.26
+    for j, (key, lab, col) in enumerate((("accuracy", "Accuracy", COL["scheduler"]),
+                                         ("precision", "Precision (cloud)", COL["edge_only"]),
+                                         ("recall", "Recall (cloud)", COL["cloud_only"]))):
+        vals = [100 * ev[k][key] for k in order]
+        a1.bar(x + (j - 1) * w, vals, w, color=col, label=lab, edgecolor=SURF, linewidth=1.5)
+        for xi, v in zip(x + (j - 1) * w, vals):
+            a1.text(xi, v + 1.2, f"{v:.0f}", ha="center", fontsize=6.5, color=INK2)
+    a1.set_xticks(x, [short[k] for k in order], fontsize=8)
+    a1.set_ylim(0, 112)
+    a1.set_ylabel("Percent")
+    a1.grid(axis="x", visible=False)
+    a1.legend(loc="upper left", ncol=3)
+    a1.set_title("(a) Routing quality")
+    vals = [ev[k]["turnaround_reduction_pct"] for k in order]
+    a2.bar(x, vals, 0.6, color=[COL["scheduler"] if k == "proposed" else MUTED for k in order],
+           edgecolor=SURF, linewidth=2)
+    a2.axhline(0, color=AXIS, lw=1)
+    span = max(abs(v) for v in vals) or 1
+    for xi, v in zip(x, vals):
+        a2.text(xi, v + (span * 0.04 if v >= 0 else -span * 0.04), f"{v:+.1f}%", ha="center",
+                va="bottom" if v >= 0 else "top", fontsize=7.5, color=INK2)
+    a2.set_ylim(min(min(vals), 0) - span * 0.2, max(max(vals), 0) + span * 0.2)
+    a2.set_xticks(x, [short[k] for k in order], fontsize=8)
+    a2.grid(axis="x", visible=False)
+    a2.set_ylabel("Reduction vs edge-only (%)")
+    a2.set_title("(b) Mean turnaround reduction (positive = faster)")
+    fig.suptitle(f"Existing versus proposed methods — {plabel}", x=0.01, ha="left", fontsize=11,
+                 fontweight="bold", color=INK, y=1.03)
+    fig.tight_layout()
+    save(fig, "fig11_existing_vs_proposed")
+
+    # Fig 12: multi-file batch submissions: (a) mean batch time vs edge-only, (b) how often the scheduler wins.
+    bt = R["batch"]
+    xs = [b["size"] for b in bt]
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(11, 3.4))
+    for p in ("cloud_only", "heuristic", "scheduler", "oracle"):
+        a1.plot(xs, [100 * (b[f"{p}_mean_s"] / b["edge_only_mean_s"] - 1) for b in bt], ls=styles[p], color=COL[p],
+                marker="o", ms=4, lw=2.4 if p == "scheduler" else 1.6, label=LABEL[p])
+    a1.axhline(0, color=COL["edge_only"], lw=1.6, ls=styles["edge_only"], label="Edge-only (baseline)")
+    a1.set_ylabel("Mean batch time vs edge-only (%)")
+    a1.set_title("(a) Batch completion time")
+    a1.legend(loc="center right", fontsize=7.5)
+    a2.plot(xs, [b["sched_beats_edge_pct"] for b in bt], color=COL["scheduler"], marker="o", ms=4, lw=2.4,
+            label="AI Scheduler faster than edge-only")
+    a2.plot(xs, [b["sched_not_worse_than_best_fixed_pct"] for b in bt], color=COL["scheduler"], ls="--", marker="o",
+            ms=4, lw=1.6, label="AI Scheduler no slower than best fixed policy")
+    a2.set_ylim(0, 105)
+    a2.set_ylabel("Share of batches (%)")
+    a2.set_title("(b) How often the scheduler wins a batch")
+    a2.legend(loc="lower right", fontsize=7.5)
+    for ax in (a1, a2):
+        ax.set_xscale("log")
+        ax.set_xticks(xs, [str(v) for v in xs])
+        ax.minorticks_off()
+        ax.set_xlabel("Files per batch submission")
+    fig.suptitle(f"Multi-file batch submissions (files run one after another) — {plabel}", x=0.01, ha="left",
+                 fontsize=11, fontweight="bold", color=INK, y=1.03)
+    fig.tight_layout()
+    save(fig, "fig12_batch_submission")
     return sorted(f for f in os.listdir(fdir) if f.endswith(".png"))
 
 
@@ -899,6 +1142,22 @@ def write_report(R, md, figs):
          "## Table 7 — Feature-group ablation (current model)", "",
          "Each row zeroes one group of features and retrains. Larger loss = more important group.", "",
          *md["ablation"], "", "![Feature ablation](figures/fig10_feature_ablation.png)", "",
+         "## Table 8 — Existing versus proposed methods", "",
+         "*A: Static threshold* offloads when the static cost estimate exceeds a threshold tuned on the training "
+         "folds. *B: Pure regression* compares two independently trained gradient-boosted latency regressors "
+         "(the v2.0 design). The proposed scheduler uses the linear + trees regressors with the same routing rule. "
+         "Precision/recall are for the *cloud is faster* class. Decision overhead is the p50 time to decide one "
+         "script on this machine. Turnaround reduction is relative to always running on the edge (positive = "
+         "faster).", "", *md["existing_vs_proposed"],
+         "![Existing vs proposed](figures/fig11_existing_vs_proposed.png)", "",
+         "## Table 9 — Single-file submissions", "",
+         "Representative scripts submitted one at a time. Predictions are out-of-fold (the script's family was not "
+         "in training); measured times are from the collection run, where each script ran on both nodes.", "",
+         *md["single_file"], "",
+         "## Table 10 — Multi-file batch submissions", "",
+         "The dashboard's batch tab routes each uploaded file independently and runs them one after another, so a "
+         "batch's completion time is the sum of its files' times. 2000 random batches per size, drawn from the "
+         "measured scripts.", "", *md["batch"], "", "![Batch submissions](figures/fig12_batch_submission.png)", "",
          "## Network-latency sensitivity", "",
          "Predictions do not depend on RTT; only the routing rule does, so the sweep re-applies the rule to the same "
          "out-of-fold predictions. Cloud-only degrades linearly with RTT while the scheduler shifts work back "
@@ -964,6 +1223,13 @@ def main():
     print("model comparison and feature ablation ...", flush=True)
     R["model_study"] = model_study(DATASETS)
     R["overhead"] = decision_overhead()
+    R["method_overhead_ms"] = method_overheads()
+    R["existing_vs_proposed"] = existing_vs_proposed(R)
+    primary = next(d for d in R["datasets"] if d["key"] == ("ec2" if any(x["key"] == "ec2" for x in R["datasets"])
+                                                              else "asym_v2"))
+    R["primary"] = primary["key"]
+    R["single_file"] = single_file_examples(primary)
+    R["batch"] = batch_study(primary, np.random.default_rng(1))
     hp = os.path.join(ROOT, "bench", "holdout_results.json")
     if os.path.exists(hp):
         h = json.load(open(hp, encoding="utf-8"))

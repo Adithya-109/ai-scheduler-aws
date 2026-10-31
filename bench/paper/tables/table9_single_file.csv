@@ -1,0 +1,12 @@
+file,pred_edge_s,pred_cloud_s,routed,edge_s,cloud_total_s,faster
+numpy_matmul_2000.py,1.2682,0.4745,Cloud,1.4477,0.6511,Cloud
+blassvd_1000.py,0.5977,0.3629,Cloud,1.1875,0.6951,Cloud
+nested_2000x3000.py,1.7050,0.6338,Cloud,1.2337,0.7536,Cloud
+fib_35.py,12.2824,4.1509,Cloud,2.1190,1.0470,Cloud
+sort_1000000.py,0.5412,0.3788,Cloud,1.5195,0.7577,Cloud
+dict_1000000.py,0.5869,0.4859,Cloud,3.5627,1.2803,Cloud
+fib_33.py,8.8300,3.0754,Cloud,0.8039,0.9086,Edge
+string_250000.py,0.1031,0.2530,Edge,0.1710,0.2107,Edge
+fib_24.py,0.1305,0.1939,Edge,0.0282,0.2047,Edge
+string_50000.py,0.0452,0.2054,Edge,0.0323,0.1740,Edge
+script_001.py,0.0188,0.1691,Edge,0.0153,0.1634,Edge
