@@ -1,4 +1,4 @@
-| Files per batch | Edge-only (s) | Cloud-only (s) | Static threshold (s) | AI Scheduler (s) | Oracle (s) | Scheduler vs edge-only | Batches where scheduler beats edge-only | ...beats both fixed policies |
+| Files per batch | Edge-only (sec) | Cloud-only (sec) | Static threshold (sec) | AI Scheduler (sec) | Oracle (sec) | Scheduler vs edge-only | Batches where scheduler beats edge-only | ...beats both fixed policies |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | 1 | 0.57 | 0.61 | 0.46 | **0.44** | 0.43 | -22.5% | 11% | 0% |
 | 5 | 2.94 | 3.12 | 2.40 | **2.28** | 2.24 | -22.6% | 45% | 45% |

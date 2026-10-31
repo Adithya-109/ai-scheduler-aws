@@ -1,4 +1,4 @@
-| Dataset | Policy | Total (s) | Mean (s) | p95 (s) | vs Edge-only | vs Cloud-only | Regret vs oracle | Routed to cloud | Decision acc. |
+| Dataset | Policy | Total (sec) | Mean (sec) | p95 (sec) | vs Edge-only | vs Cloud-only | Regret vs oracle | Routed to cloud | Decision acc. |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | Similar hardware | Edge-only | 106.0 | 0.214 | 2.026 | +0.0% | -42.1% | +0.0% | 0 | 99.8% |
 | Similar hardware | Cloud-only | 182.9 | 0.370 | 2.125 | +72.6% | +0.0% | +72.7% | 495 | 0.2% |

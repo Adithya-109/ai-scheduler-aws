@@ -9,7 +9,7 @@
 | MCC | 0.000 | 0.000 | 0.000 | -0.003 | **0.000** |
 | Misrouting rate | 0.2 % | 99.8 % | 0.2 % | 0.6 % | **0.2 %** |
 | Decision overhead | 0.00 ms | 0.00 ms | 0.18 ms | 12.95 ms | **5.19 ms** |
-| Mean turnaround per job | 0.214 s | 0.370 s | 0.214 s | 0.221 s | **0.214 s** |
+| Mean turnaround per job | 0.214 sec | 0.370 sec | 0.214 sec | 0.221 sec | **0.214 sec** |
 | Mean turnaround reduction vs edge-only | +0.0 % | -72.6 % | +0.0 % | -3.1 % | **+0.0 %** |
 
 **Asymmetric (591)** (591 scripts)
@@ -23,7 +23,7 @@
 | MCC | 0.000 | 0.000 | 0.528 | 0.590 | **0.770** |
 | Misrouting rate | 10.3 % | 89.7 % | 12.9 % | 6.8 % | **4.2 %** |
 | Decision overhead | 0.00 ms | 0.00 ms | 0.18 ms | 12.95 ms | **5.19 ms** |
-| Mean turnaround per job | 0.463 s | 0.492 s | 0.413 s | 0.431 s | **0.406 s** |
+| Mean turnaround per job | 0.463 sec | 0.492 sec | 0.413 sec | 0.431 sec | **0.406 sec** |
 | Mean turnaround reduction vs edge-only | +0.0 % | -6.4 % | +10.8 % | +6.9 % | **+12.4 %** |
 
 **Asymmetric + heavy (633)** (633 scripts)
@@ -37,7 +37,7 @@
 | MCC | 0.000 | 0.000 | 0.644 | 0.853 | **0.867** |
 | Misrouting rate | 15.6 % | 84.4 % | 12.8 % | 3.8 % | **3.5 %** |
 | Decision overhead | 0.00 ms | 0.00 ms | 0.18 ms | 12.95 ms | **5.19 ms** |
-| Mean turnaround per job | 0.549 s | 0.499 s | 0.426 s | 0.418 s | **0.417 s** |
+| Mean turnaround per job | 0.549 sec | 0.499 sec | 0.426 sec | 0.418 sec | **0.417 sec** |
 | Mean turnaround reduction vs edge-only | +0.0 % | +9.1 % | +22.3 % | +23.9 % | **+24.1 %** |
 
 **Real EC2 c7i-flex.large** (633 scripts)
@@ -51,6 +51,6 @@
 | MCC | 0.000 | 0.000 | 0.568 | 0.834 | **0.813** |
 | Misrouting rate | 13.0 % | 87.0 % | 14.7 % | 4.1 % | **4.4 %** |
 | Decision overhead | 0.00 ms | 0.00 ms | 0.18 ms | 12.95 ms | **5.19 ms** |
-| Mean turnaround per job | 0.578 s | 0.616 s | 0.469 s | 0.442 s | **0.444 s** |
+| Mean turnaround per job | 0.578 sec | 0.616 sec | 0.469 sec | 0.442 sec | **0.444 sec** |
 | Mean turnaround reduction vs edge-only | +0.0 % | -6.6 % | +18.9 % | +23.5 % | **+23.2 %** |
 

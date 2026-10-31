@@ -462,13 +462,13 @@ def write_tables(R, tdir):
     os.makedirs(tdir, exist_ok=True)
     md = {}
     # T1: policy comparison
-    rows = ["| Dataset | Policy | Total (s) | Mean (s) | p95 (s) | vs Edge-only | vs Cloud-only | Regret vs oracle | "
+    rows = ["| Dataset | Policy | Total (sec) | Mean (sec) | p95 (sec) | vs Edge-only | vs Cloud-only | Regret vs oracle | "
             "Routed to cloud | Decision acc. |",
             "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"]
     csv = ["dataset,policy,total_s,mean_s,median_s,p95_s,p99_s,vs_edge_only_pct,vs_cloud_only_pct,"
            "regret_vs_oracle_pct,routed_to_cloud,decision_accuracy"]
     tex = [r"\begin{tabular}{llrrrrrr}", r"\toprule",
-           r"Dataset & Policy & Total (s) & p95 (s) & vs Edge & vs Cloud & Regret & Acc. \\", r"\midrule"]
+           r"Dataset & Policy & Total (sec) & p95 (sec) & vs Edge & vs Cloud & Regret & Acc. \\", r"\midrule"]
     for d in R["datasets"]:
         for p in POLICIES:
             s = d["policies"][p]
@@ -562,7 +562,7 @@ def write_tables(R, tdir):
     _save(tdir, "table4_significance", rows, csv, None)
 
     # T5: dataset summary + robustness
-    rows = ["| Dataset | Scripts | Families | RTT | Median edge / cloud (s) | Cloud wins | 5-fold vs edge | Leave-one-family-out vs edge | LOFO accuracy |",
+    rows = ["| Dataset | Scripts | Families | RTT | Median edge / cloud (sec) | Cloud wins | 5-fold vs edge | Leave-one-family-out vs edge | LOFO accuracy |",
             "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"]
     for d in R["datasets"]:
         lo = d["leave_one_family_out"]
@@ -621,7 +621,7 @@ def write_tables(R, tdir):
                ("MCC", lambda m: _num(m["mcc"])),
                ("Misrouting rate", lambda m: f"{100*m['misrouting']:.1f} %"),
                ("Decision overhead", lambda m: f"{m['overhead_ms']:.2f} ms"),
-               ("Mean turnaround per job", lambda m: f"{m['mean_turnaround_s']:.3f} s"),
+               ("Mean turnaround per job", lambda m: f"{m['mean_turnaround_s']:.3f} sec"),
                ("Mean turnaround reduction vs edge-only", lambda m: f"{m['turnaround_reduction_pct']:+.1f} %")]
     rows, csv = [], ["dataset,method,accuracy,precision,recall,f1,mcc,misrouting,overhead_ms,mean_turnaround_s,"
                      "turnaround_reduction_pct"]
@@ -653,8 +653,8 @@ def write_tables(R, tdir):
     _save(tdir, "table8_existing_vs_proposed", rows, csv, tex)
 
     # T9: single-file submissions (held-out predictions vs measured outcome on both nodes)
-    rows = ["| Workload | Pred. edge (s) | Pred. cloud incl. RTT (s) | Routed to | Measured edge (s) | "
-            "Measured cloud end-to-end (s) | Faster node | Correct |",
+    rows = ["| Workload | Pred. edge (sec) | Pred. cloud incl. RTT (sec) | Routed to | Measured edge (sec) | "
+            "Measured cloud end-to-end (sec) | Faster node | Correct |",
             "| --- | ---: | ---: | :---: | ---: | ---: | :---: | :---: |"]
     csv = ["file,pred_edge_s,pred_cloud_s,routed,edge_s,cloud_total_s,faster"]
     for r in R["single_file"]:
@@ -667,7 +667,7 @@ def write_tables(R, tdir):
     _save(tdir, "table9_single_file", rows, csv, None)
 
     # T10: multi-file batch submissions
-    rows = ["| Files per batch | Edge-only (s) | Cloud-only (s) | Static threshold (s) | AI Scheduler (s) | Oracle (s) | "
+    rows = ["| Files per batch | Edge-only (sec) | Cloud-only (sec) | Static threshold (sec) | AI Scheduler (sec) | Oracle (sec) | "
             "Scheduler vs edge-only | Batches where scheduler beats edge-only | ...beats both fixed policies |",
             "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"]
     csv = ["size,edge_only_mean_s,cloud_only_mean_s,heuristic_mean_s,scheduler_mean_s,oracle_mean_s,"
@@ -751,10 +751,10 @@ def write_figures(R, fdir):
         for yi, p, v in zip(y, order, vals):
             rel = d["policies"][p]["vs_edge_only_pct"]
             tag = "baseline" if p == "edge_only" else f"{rel + 0.0:+.1f}%".replace("-0.0", "0.0").replace("+0.0", "0.0")
-            ax.text(v + max(vals) * 0.015, yi, f"{v:.0f} s  ({tag})", va="center", fontsize=7.5, color=INK2)
+            ax.text(v + max(vals) * 0.015, yi, f"{v:.0f} sec  ({tag})", va="center", fontsize=7.5, color=INK2)
         ax.set_xlim(0, max(vals) * 1.42)
         ax.set_title(d["label"])
-        ax.set_xlabel("Total wall-clock time (s)")
+        ax.set_xlabel("Total wall-clock time (sec)")
     fig.suptitle("Total completion time of every job, by routing policy (lower is better)",
                  x=0.01, ha="left", fontsize=11, fontweight="bold", color=INK, y=1.03)
     fig.tight_layout()
@@ -854,9 +854,9 @@ def write_figures(R, fdir):
                     transform=ax.transAxes, va="top", fontsize=7.5, color=INK2)
             ax.set_title(f"{d['label']} — {node}", fontsize=9)
             if i == 1:
-                ax.set_xlabel("Measured time (s)")
+                ax.set_xlabel("Measured time (sec)")
             if j == 0:
-                ax.set_ylabel("Predicted time (s)")
+                ax.set_ylabel("Predicted time (sec)")
     fig.suptitle("Latency prediction on held-out script families (line: perfect; band: within 2×)",
                  x=0.01, ha="left", fontsize=11, fontweight="bold", color=INK, y=1.01)
     fig.tight_layout()
@@ -875,7 +875,7 @@ def write_figures(R, fdir):
         ax.set_xlabel("Network round trip (ms)")
         ax.set_title(d["label"])
         ax.set_ylim(bottom=0)
-    axes[0].set_ylabel("Total wall-clock time (s)")
+    axes[0].set_ylabel("Total wall-clock time (sec)")
     axes[-1].legend(loc="upper left")
     fig.suptitle("Sensitivity to network latency (vertical line: RTT used elsewhere in this report)", x=0.01,
                  ha="left", fontsize=11, fontweight="bold", color=INK, y=1.03)
@@ -1163,7 +1163,7 @@ def write_report(R, md, figs):
          "out-of-fold predictions. Cloud-only degrades linearly with RTT while the scheduler shifts work back "
          "to the edge. From 50 ms upward the scheduler beats both fixed policies on the asymmetric data; near 0 ms "
          "cloud-only is as good or slightly better, and on similar hardware edge-only is always best.", "",
-         "| Dataset | RTT (ms) | Edge-only (s) | Cloud-only (s) | AI Scheduler (s) | Oracle (s) | Accuracy | Sent to cloud |",
+         "| Dataset | RTT (ms) | Edge-only (sec) | Cloud-only (sec) | AI Scheduler (sec) | Oracle (sec) | Accuracy | Sent to cloud |",
          "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"]
     for d in R["datasets"]:
         for r in d["rtt_sweep"]:

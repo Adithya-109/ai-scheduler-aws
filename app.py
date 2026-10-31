@@ -58,6 +58,7 @@ def cloud_status():
 STAT = get_summary()
 SCHED_VS_EDGE = reporting.fmt_pct(STAT["sched_vs_edge_pct"])
 CLOUD_HOST = config.CLOUD_WORKER_URL.split("//")[-1].split("/")[0] if config.CLOUD_WORKER_URL else "not configured"
+EDGE_HOST = config.LOCAL_WORKER_URL.split("//")[-1].split("/")[0]
 
 st.set_page_config(page_title="AI SCHEDULER", page_icon=None, layout="wide", initial_sidebar_state="collapsed")
 
@@ -120,7 +121,7 @@ st.markdown(
             &nbsp;·&nbsp; Cloud & Edge Hybrid Computing Engine &nbsp;·&nbsp; VIT CAD Project
         </div>
         <div style="display: flex; gap: 20px; align-items: center;">
-            <span>Edge: localhost:8000</span>
+            <span>Edge: {EDGE_HOST}</span>
             <span>Cloud: {CLOUD_HOST}</span>
             <span style="color: #10B981; display: inline-flex; align-items: center; gap: 5px;">
                 <span class="pulse-dot"></span> Online

@@ -1,4 +1,4 @@
-| Workload | Pred. edge (s) | Pred. cloud incl. RTT (s) | Routed to | Measured edge (s) | Measured cloud end-to-end (s) | Faster node | Correct |
+| Workload | Pred. edge (sec) | Pred. cloud incl. RTT (sec) | Routed to | Measured edge (sec) | Measured cloud end-to-end (sec) | Faster node | Correct |
 | --- | ---: | ---: | :---: | ---: | ---: | :---: | :---: |
 | `numpy_matmul_2000.py` | 1.268 | 0.474 | Cloud | 1.448 | 0.651 | Cloud | yes |
 | `blassvd_1000.py` | 0.598 | 0.363 | Cloud | 1.188 | 0.695 | Cloud | yes |

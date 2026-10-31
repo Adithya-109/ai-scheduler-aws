@@ -1,4 +1,4 @@
-| Dataset | Scripts | Families | RTT | Median edge / cloud (s) | Cloud wins | 5-fold vs edge | Leave-one-family-out vs edge | LOFO accuracy |
+| Dataset | Scripts | Families | RTT | Median edge / cloud (sec) | Cloud wins | 5-fold vs edge | Leave-one-family-out vs edge | LOFO accuracy |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | Similar hardware | 495 | 20 | 110 ms | 0.035 / 0.017 | 1 | +0.0% | +0.0% | 99.8% |
 | Asymmetric (591) | 591 | 21 | 110 ms | 0.015 / 0.015 | 61 | -12.4% | -8.6% | 94.4% |
