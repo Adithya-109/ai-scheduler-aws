@@ -62,7 +62,7 @@ if os.path.exists(EC2_CSV):  # real-network run (scripts/run_asymmetric_experime
                      "real network; cloud scored by measured end-to-end time"))
 POLICIES = ["edge_only", "cloud_only", "random", "heuristic", "scheduler", "oracle"]
 LABEL = {"edge_only": "Edge-only", "cloud_only": "Cloud-only", "random": "Random (p=0.5)",
-         "heuristic": "Static threshold", "scheduler": "AI Scheduler", "oracle": "Oracle (bound)"}
+         "heuristic": "Static threshold", "scheduler": "AI Scheduler (Proposed)", "oracle": "Oracle (bound)"}
 TIE_BAND = 0.10  # |edge - cloud_total| / max(.) below this is a near-tie: either choice costs < 10%
 
 
@@ -385,7 +385,7 @@ def existing_vs_proposed(R):
                 ("pure_regression", "B: Pure regression (two GBT regressors)",
                  {"accuracy": gbt["accuracy"], "precision_cloud": gbt["precision_cloud"],
                   "recall_cloud": gbt["recall_cloud"], "f1_cloud": gbt["f1_cloud"], "mcc": gbt["mcc"]}, gbt["mean_s"]),
-                ("proposed", "Proposed AI Scheduler", d["classification"]["scheduler"],
+                ("proposed", "AI Scheduler (Proposed)", d["classification"]["scheduler"],
                  d["policies"]["scheduler"]["mean_s"])):
             base = d["policies"]["edge_only"]["mean_s"]
             rows[key] = {"name": name, "accuracy": cls["accuracy"], "precision": cls["precision_cloud"],
@@ -497,7 +497,7 @@ def write_tables(R, tdir):
     tex = [r"\begin{tabular}{llrrrrrrr}", r"\toprule",
            r"Dataset & Subset & $n$ & Acc. & Majority & Bal. acc. & Prec. & Rec. & MCC \\", r"\midrule"]
     for d in R["datasets"]:
-        for sub, nm in (("scheduler", "AI Scheduler, all"), ("scheduler_decisive_only", "AI Scheduler, decisive"),
+        for sub, nm in (("scheduler", "AI Scheduler (Proposed), all"), ("scheduler_decisive_only", "AI Scheduler (Proposed), decisive"),
                         ("heuristic", "Static threshold, all")):
             m = d["classification"][sub]
             rows.append(f"| {d['label']} | {nm} | {m['n']} | {100*m['accuracy']:.1f}% "
@@ -547,9 +547,9 @@ def write_tables(R, tdir):
             "| --- | --- | ---: | ---: | ---: | ---: | ---: |"]
     csv = ["dataset,comparison,delta_pct,ci_script_lo,ci_script_hi,ci_family_lo,ci_family_hi,p_value,rank_biserial,wins,losses"]
     for d in R["datasets"]:
-        for b, nm, sig in (("edge_only", "AI Scheduler vs Edge-only", "vs_edge_only"),
-                           ("cloud_only", "AI Scheduler vs Cloud-only", "vs_cloud_only"),
-                           ("heuristic", "AI Scheduler vs Static threshold", "vs_heuristic")):
+        for b, nm, sig in (("edge_only", "AI Scheduler (Proposed) vs Edge-only", "vs_edge_only"),
+                           ("cloud_only", "AI Scheduler (Proposed) vs Cloud-only", "vs_cloud_only"),
+                           ("heuristic", "AI Scheduler (Proposed) vs Static threshold", "vs_heuristic")):
             bt, st = d["bootstrap"][b], d["significance"][sig]
             delta = 100 * (d["policies"]["scheduler"]["total_s"] / d["policies"][b]["total_s"] - 1)
             rows.append(f"| {d['label']} | {nm} | {delta:+.1f}% {fmt_ci(bt['script'])} | {fmt_ci(bt['family'])} | "
@@ -642,7 +642,7 @@ def write_tables(R, tdir):
                        f"{m['turnaround_reduction_pct']:.3f}")
         if d["key"] == R["primary"]:
             tex = [r"\begin{tabular}{lrrrrr}", r"\toprule",
-                   "Metric & Edge-only & Cloud-only & A: Threshold & B: Regression & \\textbf{Proposed} \\\\",
+                   "Metric & Edge-only & Cloud-only & A: Threshold & B: Regression & \\textbf{AI Scheduler (Proposed)} \\\\",
                    r"\midrule"]
             for label, f in metrics:
                 tex.append(f"{label} & " + " & ".join(
@@ -785,7 +785,7 @@ def write_figures(R, fdir):
     lo_all = min(d["bootstrap"][b]["script"][0] for d in ds for b, _ in comps)
     hi_all = max(d["bootstrap"][b]["script"][1] for d in ds for b, _ in comps)
     ax.set_xlim(lo_all - 5, hi_all + 40)
-    ax.set_title("AI Scheduler vs each baseline, with 95% bootstrap confidence intervals")
+    ax.set_title("AI Scheduler (Proposed) vs each baseline, with 95% bootstrap confidence intervals")
     save(fig, "fig2_improvement_ci")
 
     # Fig 3: per-job latency CDF (asymmetric datasets).
@@ -902,7 +902,7 @@ def write_figures(R, fdir):
         x = min(v, ov)
         ax.text(x - 1.5 if x < 0 else max(v, ov) + 1.5, yi, f"{v:+.0f}%", va="center",
                 ha="right" if x < 0 else "left", fontsize=7.5, color=INK2)
-    ax.set_xlabel("AI Scheduler total time vs Edge-only, per script family (%)" +
+    ax.set_xlabel("AI Scheduler (Proposed) total time vs Edge-only, per script family (%)" +
                   (f"\n{len(still)} families where no routing could save time are omitted" if still else ""))
     ax.set_xlim(min(rel + orc) - 14, max(max(rel + orc), 0) + 8)
     ax.legend(loc="lower left")
@@ -982,7 +982,7 @@ def write_figures(R, fdir):
     plabel = next(d["label"] for d in ds if d["key"] == R["primary"])
     order = ["edge_only", "cloud_only", "threshold", "pure_regression", "proposed"]
     short = {"edge_only": "Edge-only", "cloud_only": "Cloud-only", "threshold": "A: Static\nthreshold",
-             "pure_regression": "B: Pure\nregression", "proposed": "Proposed\nAI Scheduler"}
+             "pure_regression": "B: Pure\nregression", "proposed": "AI Scheduler\n(Proposed)"}
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(11, 3.6), gridspec_kw={"width_ratios": [1.5, 1]})
     x = np.arange(len(order))
     w = 0.26
@@ -1029,12 +1029,12 @@ def write_figures(R, fdir):
     a1.set_title("(a) Batch completion time")
     a1.legend(loc="center right", fontsize=7.5)
     a2.plot(xs, [b["sched_beats_edge_pct"] for b in bt], color=COL["scheduler"], marker="o", ms=4, lw=2.4,
-            label="AI Scheduler faster than edge-only")
+            label="AI Scheduler (Proposed) faster than edge-only")
     a2.plot(xs, [b["sched_not_worse_than_best_fixed_pct"] for b in bt], color=COL["scheduler"], ls="--", marker="o",
-            ms=4, lw=1.6, label="AI Scheduler no slower than best fixed policy")
+            ms=4, lw=1.6, label="AI Scheduler (Proposed) no slower than best fixed policy")
     a2.set_ylim(0, 105)
     a2.set_ylabel("Share of batches (%)")
-    a2.set_title("(b) How often the scheduler wins a batch")
+    a2.set_title("(b) How often AI Scheduler (Proposed) wins a batch")
     a2.legend(loc="lower right", fontsize=7.5)
     for ax in (a1, a2):
         ax.set_xscale("log")

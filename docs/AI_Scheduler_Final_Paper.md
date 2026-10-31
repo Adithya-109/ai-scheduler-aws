@@ -6,7 +6,7 @@ School of Computer Science and Engineering, Vellore Institute of Technology (VIT
 
 ## Abstract
 
-Deciding where a user's program should run in an edge–cloud setup depends on how long it would take at each location. Running it locally can overload a weak edge device; sending it to the cloud adds network delay; and test-running the program first to find out costs time and means executing untrusted code. We present AI Scheduler, a four-module system that routes Python programs between an edge computer and an AWS EC2 cloud server. **Code Analysis** reads the program's abstract syntax tree without running it and extracts thirteen features, including log-scale estimates of interpreted operations, NumPy element operations and BLAS floating-point work, in 0.20 ms on average. **Network Check** measures the round-trip delay to the cloud with live probes. **Prediction and Routing** predicts the run time on each node with a robust linear model on the work estimates plus gradient-boosted trees on its residual, and sends the program to whichever node is expected to finish first. **Execution and Report** runs the program on the selected node, falls back to the edge if the cloud fails, and returns the output, the node used and the time taken; programs can be submitted one at a time or as a multi-file batch. We evaluated the system on 633 programs, each measured on both a CPU-limited edge and a c7i-flex.large EC2 instance over the real network (median round trip 155 ms), with whole program families held out of training. The scheduler routed 95.6 % of programs to the faster node (MCC 0.813), and completed the workload 23.2 % faster than always running at the edge (95 % CI 15.8–30.9 %) and 27.9 % faster than always offloading, within 1.5 % of an oracle that knows every run time in advance.
+Deciding where a user's program should run in an edge–cloud setup depends on how long it would take at each location. Running it locally can overload a weak edge device; sending it to the cloud adds network delay; and test-running the program first to find out costs time and means executing untrusted code. We present AI Scheduler, a four-module system that routes Python programs between an edge computer and an AWS EC2 cloud server. **Code Analysis** reads the program's abstract syntax tree without running it and extracts thirteen features, including log-scale estimates of interpreted operations, NumPy element operations and BLAS floating-point work, in 0.20 ms on average. **Network Check** measures the round-trip delay to the cloud with live probes. **Prediction and Routing** predicts the run time on each node with a robust linear model on the work estimates plus gradient-boosted trees on its residual, and sends the program to whichever node is expected to finish first. **Execution and Report** runs the program on the selected node, falls back to the edge if the cloud fails, and returns the output, the node used and the time taken; programs can be submitted one at a time or as a multi-file batch. We evaluated the system on 633 programs, each measured on both a CPU-limited edge and a c7i-flex.large EC2 instance over the real network (median round trip 155 ms), with whole program families held out of training. AI Scheduler (Proposed) routed 95.6 % of programs to the faster node (MCC 0.813), and completed the workload 23.2 % faster than always running at the edge (95 % CI 15.8–30.9 %) and 27.9 % faster than always offloading, within 1.5 % of an oracle that knows every run time in advance.
 
 **Index Terms.** Computation offloading, edge–cloud orchestration, abstract syntax tree, latency prediction, gradient boosting, AWS EC2.
 
@@ -92,7 +92,7 @@ Output: feature vector X (13 features) or syntax error
 
 ### 3.3 Network Check
 
-Network Check measures the delay to the cloud by timing requests to the worker's lightweight /health endpoint. During operation, each probe updates an exponentially weighted moving average (α = 0.3), which smooths jitter while following real changes; the current value is passed directly to the routing decision so that placement reflects current network conditions. For data collection, 21 probes are taken and their median is recorded together with the 90th percentile. If no live estimate is available, the scheduler uses the value measured at training time.
+Network Check measures the delay to the cloud by timing requests to the worker's lightweight /health endpoint. During operation, each probe updates an exponentially weighted moving average (α = 0.3), which smooths jitter while following real changes; the current value is passed directly to the routing decision so that placement reflects current network conditions. For data collection, 21 probes are taken and their median is recorded together with the 90th percentile. If no live estimate is available, AI Scheduler (Proposed) uses the value measured at training time.
 
 ```
 Algorithm 2: Network Delay Estimation
@@ -132,7 +132,7 @@ Output: decision D, confidence C, T_edge, T_cloud
 
 Execution and Report sends the code as JSON to the selected worker's /execute endpoint. The worker requires an API key, runs each job in a fresh, isolated Python process with a scrubbed environment, CPU-time, memory and output limits, and a wall-clock timeout, and returns standard output, standard error and compute time. If the cloud call fails, the job is re-run on the edge, and a circuit breaker stops sending work to a cloud node that keeps failing. Every dispatch is appended to a decision log (features, predictions, decision, outcome), from which the models can be retrained.
 
-Both tiers use the same REST interface, so the scheduler selects a worker by changing the URL, and each worker can be replaced independently. The Streamlit dashboard presents four views: Overview; Live Dispatch for single-file and multi-file submission; Cluster and RTT for endpoint health checks and simulated-delay control; and Telemetry for model benchmarks and routing breakdowns.
+Both tiers use the same REST interface, so AI Scheduler (Proposed) selects a worker by changing the URL, and each worker can be replaced independently. The Streamlit dashboard presents four views: Overview; Live Dispatch for single-file and multi-file submission; Cluster and RTT for endpoint health checks and simulated-delay control; and Telemetry for model benchmarks and routing breakdowns.
 
 **Single-file submission.** The user pastes or edits one program (presets are provided for matrix multiplication, string processing, recursive Fibonacci and nested loops) and runs it. The program passes once through the full pipeline, and the view reports the routing decision with its confidence, the predicted edge and cloud latencies, the predicted offload gain, the worker's compute time, the end-to-end time and the program's output.
 
@@ -154,7 +154,7 @@ Input: uploaded files F_1..F_n
 Output: reports R_1..R_n
  1  for i = 1..n:
  2      S_i <- decode(F_i)
- 3      X_i <- CodeAnalysis(S_i)            // on syntax error: report it, continue
+ 3      X_i <- CodeAnalysis(S_i)             // on syntax error: report it, continue
  4      D_i <- Route(X_i, tau_RTT)           // Algorithm 3
  5      R_i <- ExecuteAndReport(S_i, D_i)    // Algorithm 4
  6  return R_1..R_n                          // batch time = sum of per-file times
@@ -243,7 +243,7 @@ Heavy numerical and long-running programs (matrix multiplication, SVD, a 6-milli
 
 TABLE VI. MULTI-FILE BATCH SUBMISSIONS ON REAL EC2 (MEAN BATCH COMPLETION TIME)
 
-| Files per batch | Edge-only (s) | Cloud-only (s) | Static threshold (s) | AI Scheduler (s) | Oracle (s) | Scheduler vs edge-only | Batches where scheduler beats edge-only | ...beats both fixed policies |
+| Files per batch | Edge-only (s) | Cloud-only (s) | Static threshold (s) | AI Scheduler (Proposed) (s) | Oracle (s) | AI Scheduler (Proposed) vs edge-only | Batches faster than edge-only | Batches faster than both fixed policies |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | 1 | 0.57 | 0.61 | 0.46 | **0.44** | 0.43 | -22.5% | 11% | 0% |
 | 5 | 2.94 | 3.12 | 2.40 | **2.28** | 2.24 | -22.6% | 45% | 45% |
@@ -254,19 +254,19 @@ TABLE VI. MULTI-FILE BATCH SUBMISSIONS ON REAL EC2 (MEAN BATCH COMPLETION TIME)
 
 ![Fig. 3](paper_figures/fig5_batch_submission.png)
 
-Fig. 3. Multi-file batch submissions on real EC2: (a) mean batch time relative to edge-only; (b) share of batches in which the AI Scheduler is faster than edge-only, and no slower than the better fixed policy.
+Fig. 3. Multi-file batch submissions on real EC2: (a) mean batch time relative to edge-only; (b) share of batches in which AI Scheduler (Proposed) is faster than edge-only, and no slower than the better fixed policy.
 
-Routing each file independently cut the mean batch completion time by about 22 % at every batch size, close to the oracle and ahead of the static threshold, while sending the whole batch to the cloud was 6–8 % slower than keeping it local. Batching also makes the benefit dependable: a single file is usually light, so the scheduler is faster than edge-only on only 11 % of single files (and never slower than the better fixed policy on 96 %), but it wins 93 % of 25-file batches and 99 % of 50-file batches.
+Routing each file independently cut the mean batch completion time by about 22 % at every batch size, close to the oracle and ahead of the static threshold, while sending the whole batch to the cloud was 6–8 % slower than keeping it local. Batching also makes the benefit dependable: a single file is usually light, so AI Scheduler (Proposed) is faster than edge-only on only 11 % of single files (and never slower than the better fixed policy on 96 %), but it wins 93 % of 25-file batches and 99 % of 50-file batches.
 
 ## 5. Performance and Metrics
 
 ### 5.1 Accuracy: Existing versus Proposed Methodology
 
-The proposed system was compared on the same 633 programs with two fixed policies and two existing methods: **Method A (static threshold)**, a rule that offloads whenever the static cost estimate exceeds a threshold tuned on the training folds, and **Method B (pure regression)**, two independently trained gradient-boosted latency regressors compared directly. All methods were scored with whole families held out. Misrouting rate is the share of programs sent to the slower tier; turnaround reduction is relative to always running at the edge (positive is faster).
+AI Scheduler (Proposed) was compared on the same 633 programs with two fixed policies and two existing methods: **Method A (static threshold)**, a rule that offloads whenever the static cost estimate exceeds a threshold tuned on the training folds, and **Method B (pure regression)**, two independently trained gradient-boosted latency regressors compared directly. All methods were scored with whole families held out. Misrouting rate is the share of programs sent to the slower tier; turnaround reduction is relative to always running at the edge (positive is faster).
 
 TABLE VII. ACCURACY AND PERFORMANCE: EXISTING VERSUS PROPOSED (REAL EC2, 633 PROGRAMS)
 
-| Metric | Edge-only | Cloud-only | A: Static threshold | B: Pure regression (two GBT regressors) | Proposed AI Scheduler |
+| Metric | Edge-only | Cloud-only | A: Static threshold | B: Pure regression (two GBT regressors) | AI Scheduler (Proposed) |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Routing accuracy | 87.0 % | 13.0 % | 85.3 % | 95.9 % | **95.6 %** |
 | Precision (cloud offload) | 0.0 % | 13.0 % | 46.5 % | 79.2 % | **80.0 %** |
@@ -282,22 +282,22 @@ TABLE VII. ACCURACY AND PERFORMANCE: EXISTING VERSUS PROPOSED (REAL EC2, 633 PRO
 
 Fig. 4. Existing versus proposed methodology on real EC2: (a) routing accuracy, precision and recall for the "cloud is faster" class; (b) reduction in mean turnaround time relative to edge-only (positive is faster).
 
-**Inference.** Both learned methods clearly outperform the static threshold: routing accuracy rises from 85.3 % to about 96 %, cloud-offload precision from 46 % to 80 % (the threshold sends many short programs to the cloud for nothing), and the mean turnaround reduction from 18.9 % to 23.2 %. Always offloading is 6.6 % slower than never offloading. On this testbed the proposed scheduler and pure regression are within half a point of each other (pure regression is marginally ahead, 23.5 % against 23.2 %). The difference appears when a family has more work than anything in training: on the 591-program testbed without the heavy linear-algebra families, pure regression predicted 0.07 s for 4 s matrix multiplications and never offloaded them, reaching only -6.9 %, while the proposed scheduler reached -12.4 % (Table VIII). The proposed method is the most consistent across testbeds and decides in 5.2 ms against 12.9 ms for pure regression, both negligible next to the 155 ms round trip. Against edge-only, cloud-only and the threshold, the scheduler's gains are statistically significant (paired Wilcoxon tests on per-program times, p < 10⁻¹⁰; 95 % bootstrap interval for the reduction versus edge-only 15.8–30.9 %).
+**Inference.** Both learned methods clearly outperform the static threshold: routing accuracy rises from 85.3 % to about 96 %, cloud-offload precision from 46 % to 80 % (the threshold sends many short programs to the cloud for nothing), and the mean turnaround reduction from 18.9 % to 23.2 %. Always offloading is 6.6 % slower than never offloading. On this testbed AI Scheduler (Proposed) and pure regression are within half a point of each other (pure regression is marginally ahead, 23.5 % against 23.2 %). The difference appears when a family has more work than anything in training: on the 591-program testbed without the heavy linear-algebra families, pure regression predicted 0.07 s for 4 s matrix multiplications and never offloaded them, reaching only -6.9 %, while AI Scheduler (Proposed) reached -12.4 % (Table VIII). AI Scheduler (Proposed) is the most consistent across testbeds and decides in 5.2 ms against 12.9 ms for pure regression, both negligible next to the 155 ms round trip. Against edge-only, cloud-only and the threshold, the gains of AI Scheduler (Proposed) are statistically significant (paired Wilcoxon tests on per-program times, p < 10⁻¹⁰; 95 % bootstrap interval for the reduction versus edge-only 15.8–30.9 %).
 
 ### 5.2 Robustness Across Testbeds and Network Delay
 
 Table VIII repeats the evaluation on three further testbeds: the project's original measurements on two similar machines (where offloading almost never pays), and two Docker configurations with a 0.5-CPU edge and a 4-CPU "cloud" with a simulated 110 ms delay.
 
-TABLE VIII. AI SCHEDULER ACROSS TESTBEDS (FAMILIES HELD OUT)
+TABLE VIII. AI SCHEDULER (PROPOSED) ACROSS TESTBEDS (FAMILIES HELD OUT)
 
-| Testbed | Scripts | Cloud faster | AI Scheduler vs edge-only | vs cloud-only | Gap to oracle | Routing accuracy | MCC |
+| Testbed | Scripts | Cloud faster | AI Scheduler (Proposed) vs edge-only | vs cloud-only | Gap to oracle | Routing accuracy | MCC |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | Similar hardware | 495 | 1 | +0.0 % | -42.1 % | +0.0 % | 99.8 % | 0.000 |
 | Docker asymmetric | 591 | 61 | -12.4 % | -17.6 % | +0.8 % | 95.8 % | 0.770 |
 | Docker asym. + heavy | 633 | 99 | -24.1 % | -16.6 % | +0.3 % | 96.5 % | 0.867 |
 | **Real EC2** | 633 | 82 | -23.2 % | -27.9 % | +1.5 % | 95.6 % | 0.813 |
 
-When the tiers are equally fast, the scheduler correctly keeps everything at the edge and matches edge-only; when the cloud is faster, it captures most of the available gain, within 0.3–1.5 % of the oracle on the asymmetric testbeds (Fig. 5). Re-applying the routing rule to the same EC2 predictions at different network delays (Fig. 6) shows the expected behaviour: at 10 ms the scheduler offloads 43 % of programs, at 110 ms 16 %, and at 500 ms 10 %, beating both fixed policies from 10 ms upward (below that, cloud-only is marginally better), while cloud-only degrades linearly with delay. In this sweep cloud time is computed as measured compute time plus the swept delay.
+When the tiers are equally fast, AI Scheduler (Proposed) correctly keeps everything at the edge and matches edge-only; when the cloud is faster, it captures most of the available gain, within 0.3–1.5 % of the oracle on the asymmetric testbeds (Fig. 5). Re-applying the routing rule to the same EC2 predictions at different network delays (Fig. 6) shows the expected behaviour: at 10 ms AI Scheduler (Proposed) offloads 43 % of programs, at 110 ms 16 %, and at 500 ms 10 %, beating both fixed policies from 10 ms upward (below that, cloud-only is marginally better), while cloud-only degrades linearly with delay. In this sweep cloud time is computed as measured compute time plus the swept delay.
 
 ![Fig. 5](paper_figures/fig3_policy_total_time.png)
 
@@ -313,7 +313,7 @@ The system has five main limitations. The edge is a CPU-quota-limited container 
 
 ## 6. Conclusions
 
-We introduced AI Scheduler, an orchestrator with four modules: Code Analysis, Network Check, Prediction and Routing, and Execution and Report. It combines zero-execution AST cost estimation, live network-delay measurement, latency models with a robust linear term that extrapolates to heavier programs, and a shared REST execution layer that supports single-file and multi-file batch submission. On 633 programs measured on a CPU-limited edge and a real AWS EC2 c7i-flex.large over a 155 ms network, with whole program families held out, the scheduler routed 95.6 % of programs to the faster tier (MCC 0.813), reduced total turnaround by 23.2 % against always running at the edge and 27.9 % against always offloading, stayed within 1.5 % of an oracle, and decided in about 5 ms. Multi-file batches of 25 programs or more finished faster than edge-only in over 90 % of cases. Future work includes placement across several edge and cloud nodes, parallel batch execution, GPU and container-based offloading, energy- and cost-aware objectives, graph-based code representations as in [19], [22], [30], and online retraining from the stored decision log.
+We introduced AI Scheduler, an orchestrator with four modules: Code Analysis, Network Check, Prediction and Routing, and Execution and Report. It combines zero-execution AST cost estimation, live network-delay measurement, latency models with a robust linear term that extrapolates to heavier programs, and a shared REST execution layer that supports single-file and multi-file batch submission. On 633 programs measured on a CPU-limited edge and a real AWS EC2 c7i-flex.large over a 155 ms network, with whole program families held out, AI Scheduler (Proposed) routed 95.6 % of programs to the faster tier (MCC 0.813), reduced total turnaround by 23.2 % against always running at the edge and 27.9 % against always offloading, stayed within 1.5 % of an oracle, and decided in about 5 ms. Multi-file batches of 25 programs or more finished faster than edge-only in over 90 % of cases. Future work includes placement across several edge and cloud nodes, parallel batch execution, GPU and container-based offloading, energy- and cost-aware objectives, graph-based code representations as in [19], [22], [30], and online retraining from the stored decision log.
 
 ## References
 

@@ -2965,7 +2965,7 @@
         "turnaround_reduction_pct": -3.11392576067111
       },
       "proposed": {
-        "name": "Proposed AI Scheduler",
+        "name": "AI Scheduler (Proposed)",
         "accuracy": 0.997979797979798,
         "precision": 0.0,
         "recall": 0.0,
@@ -3027,7 +3027,7 @@
         "turnaround_reduction_pct": 6.8857031880596775
       },
       "proposed": {
-        "name": "Proposed AI Scheduler",
+        "name": "AI Scheduler (Proposed)",
         "accuracy": 0.9576988155668359,
         "precision": 0.8,
         "recall": 0.7868852459016393,
@@ -3089,7 +3089,7 @@
         "turnaround_reduction_pct": 23.891225658041847
       },
       "proposed": {
-        "name": "Proposed AI Scheduler",
+        "name": "AI Scheduler (Proposed)",
         "accuracy": 0.9652448657187994,
         "precision": 0.8969072164948454,
         "recall": 0.8787878787878788,
@@ -3151,7 +3151,7 @@
         "turnaround_reduction_pct": 23.506905568682225
       },
       "proposed": {
-        "name": "Proposed AI Scheduler",
+        "name": "AI Scheduler (Proposed)",
         "accuracy": 0.9557661927330173,
         "precision": 0.8,
         "recall": 0.8780487804878049,

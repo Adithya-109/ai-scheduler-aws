@@ -1,6 +1,6 @@
 **Similar hardware** (495 scripts)
 
-| Metric | Edge-only | Cloud-only | A: Static threshold | B: Pure regression (two GBT regressors) | Proposed AI Scheduler |
+| Metric | Edge-only | Cloud-only | A: Static threshold | B: Pure regression (two GBT regressors) | AI Scheduler (Proposed) |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Routing accuracy | 99.8 % | 0.2 % | 99.8 % | 99.4 % | **99.8 %** |
 | Precision (cloud offload) | 0.0 % | 0.2 % | 0.0 % | 0.0 % | **0.0 %** |
@@ -14,7 +14,7 @@
 
 **Asymmetric (591)** (591 scripts)
 
-| Metric | Edge-only | Cloud-only | A: Static threshold | B: Pure regression (two GBT regressors) | Proposed AI Scheduler |
+| Metric | Edge-only | Cloud-only | A: Static threshold | B: Pure regression (two GBT regressors) | AI Scheduler (Proposed) |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Routing accuracy | 89.7 % | 10.3 % | 87.1 % | 93.2 % | **95.8 %** |
 | Precision (cloud offload) | 0.0 % | 10.3 % | 43.4 % | 74.4 % | **80.0 %** |
@@ -28,7 +28,7 @@
 
 **Asymmetric + heavy (633)** (633 scripts)
 
-| Metric | Edge-only | Cloud-only | A: Static threshold | B: Pure regression (two GBT regressors) | Proposed AI Scheduler |
+| Metric | Edge-only | Cloud-only | A: Static threshold | B: Pure regression (two GBT regressors) | AI Scheduler (Proposed) |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Routing accuracy | 84.4 % | 15.6 % | 87.2 % | 96.2 % | **96.5 %** |
 | Precision (cloud offload) | 0.0 % | 15.6 % | 55.6 % | 90.3 % | **89.7 %** |
@@ -42,7 +42,7 @@
 
 **Real EC2 c7i-flex.large** (633 scripts)
 
-| Metric | Edge-only | Cloud-only | A: Static threshold | B: Pure regression (two GBT regressors) | Proposed AI Scheduler |
+| Metric | Edge-only | Cloud-only | A: Static threshold | B: Pure regression (two GBT regressors) | AI Scheduler (Proposed) |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Routing accuracy | 87.0 % | 13.0 % | 85.3 % | 95.9 % | **95.6 %** |
 | Precision (cloud offload) | 0.0 % | 13.0 % | 46.5 % | 79.2 % | **80.0 %** |

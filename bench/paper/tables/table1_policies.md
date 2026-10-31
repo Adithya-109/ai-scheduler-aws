@@ -4,23 +4,23 @@
 | Similar hardware | Cloud-only | 182.9 | 0.370 | 2.125 | +72.6% | +0.0% | +72.7% | 495 | 0.2% |
 | Similar hardware | Random (p=0.5) | 144.4 | 0.292 | 2.037 | +36.2% | -21.1% | +36.3% | 248 | 50.0% |
 | Similar hardware | Static threshold | 106.0 | 0.214 | 2.026 | +0.0% | -42.1% | +0.0% | 0 | 99.8% |
-| Similar hardware | **AI Scheduler** | 106.0 | 0.214 | 2.026 | +0.0% | -42.1% | +0.0% | 0 | 99.8% |
+| Similar hardware | **AI Scheduler (Proposed)** | 106.0 | 0.214 | 2.026 | +0.0% | -42.1% | +0.0% | 0 | 99.8% |
 | Similar hardware | Oracle (bound) | 105.9 | 0.214 | 2.026 | -0.0% | -42.1% | +0.0% | 1 | 100.0% |
 | Asymmetric (591) | Edge-only | 273.7 | 0.463 | 2.076 | +0.0% | -6.0% | +15.1% | 0 | 89.7% |
 | Asymmetric (591) | Cloud-only | 291.1 | 0.492 | 2.126 | +6.4% | +0.0% | +22.4% | 591 | 10.3% |
 | Asymmetric (591) | Random (p=0.5) | 282.3 | 0.478 | 2.125 | +3.2% | -3.0% | +18.7% | 295 | 50.1% |
 | Asymmetric (591) | Static threshold | 244.1 | 0.413 | 2.126 | -10.8% | -16.1% | +2.6% | 113 | 87.1% |
-| Asymmetric (591) | **AI Scheduler** | 239.7 | 0.406 | 2.017 | -12.4% | -17.6% | +0.8% | 60 | 95.8% |
+| Asymmetric (591) | **AI Scheduler (Proposed)** | 239.7 | 0.406 | 2.017 | -12.4% | -17.6% | +0.8% | 60 | 95.8% |
 | Asymmetric (591) | Oracle (bound) | 237.8 | 0.402 | 2.017 | -13.1% | -18.3% | +0.0% | 61 | 100.0% |
 | Asymmetric + heavy (633) | Edge-only | 347.5 | 0.549 | 2.217 | +0.0% | +10.0% | +32.2% | 0 | 84.4% |
 | Asymmetric + heavy (633) | Cloud-only | 316.0 | 0.499 | 2.126 | -9.1% | +0.0% | +20.3% | 633 | 15.6% |
 | Asymmetric + heavy (633) | Random (p=0.5) | 331.8 | 0.524 | 2.127 | -4.5% | +5.0% | +26.3% | 317 | 50.0% |
 | Asymmetric + heavy (633) | Static threshold | 269.9 | 0.426 | 2.126 | -22.3% | -14.6% | +2.7% | 162 | 87.2% |
-| Asymmetric + heavy (633) | **AI Scheduler** | 263.7 | 0.417 | 2.017 | -24.1% | -16.6% | +0.3% | 97 | 96.5% |
+| Asymmetric + heavy (633) | **AI Scheduler (Proposed)** | 263.7 | 0.417 | 2.017 | -24.1% | -16.6% | +0.3% | 97 | 96.5% |
 | Asymmetric + heavy (633) | Oracle (bound) | 262.8 | 0.415 | 2.017 | -24.4% | -16.8% | +0.0% | 99 | 100.0% |
 | Real EC2 c7i-flex.large | Edge-only | 365.8 | 0.578 | 2.225 | +0.0% | -6.2% | +32.2% | 0 | 87.0% |
 | Real EC2 c7i-flex.large | Cloud-only | 389.9 | 0.616 | 2.302 | +6.6% | +0.0% | +40.9% | 633 | 13.0% |
 | Real EC2 c7i-flex.large | Random (p=0.5) | 378.2 | 0.597 | 2.305 | +3.4% | -3.0% | +36.7% | 316 | 50.0% |
 | Real EC2 c7i-flex.large | Static threshold | 296.6 | 0.469 | 2.302 | -18.9% | -23.9% | +7.2% | 155 | 85.3% |
-| Real EC2 c7i-flex.large | **AI Scheduler** | 281.0 | 0.444 | 2.036 | -23.2% | -27.9% | +1.5% | 90 | 95.6% |
+| Real EC2 c7i-flex.large | **AI Scheduler (Proposed)** | 281.0 | 0.444 | 2.036 | -23.2% | -27.9% | +1.5% | 90 | 95.6% |
 | Real EC2 c7i-flex.large | Oracle (bound) | 276.7 | 0.437 | 2.033 | -24.3% | -29.0% | +0.0% | 82 | 100.0% |
