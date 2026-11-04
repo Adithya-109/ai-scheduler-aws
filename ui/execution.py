@@ -4,6 +4,51 @@ import plotly.graph_objects as go
 import streamlit as st
 
 
+def show_prediction_only(ctx, plan, ex):
+    """Routing decision and predicted latencies when no worker can run the job."""
+    preds, decision = plan["predictions"], plan["decision"]
+    is_edge = decision == "EDGE"
+    badge_color = "#10B981" if is_edge else "var(--accent-amber)"
+    st.info("No execution worker is connected to this deployment, so the program was analysed and routed "
+            f"but not run. ({ex})")
+    st.markdown(
+        f"""
+        <div class="decision-banner {'edge-decision' if is_edge else 'cloud-decision'}" style="margin: 1.5rem 0 1.2rem 0;">
+            <div>
+                <div style="font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.08em; margin-bottom: 4px;">
+                    ROUTING DECISION · {plan.get('decision_method', 'regression').upper()} ({plan.get('confidence', 0):.1%} CONFIDENCE)
+                </div>
+                <div style="font-family: var(--font-heading); font-size: 1.3rem; font-weight: 700; color: {badge_color};">
+                    Would dispatch to {'Local Edge Worker' if is_edge else 'AWS EC2 Cloud Node'}
+                </div>
+            </div>
+            <div class="tech-chip" style="font-size: 0.8rem; padding: 5px 12px;">
+                Analysis: {plan.get('scheduling_ms', 0):.1f} ms
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    m1, m2, m3 = st.columns(3, gap="medium")
+    with m1:
+        st.metric(label="Predicted Edge Latency", value=f"{preds['predicted_edge_time']:.4f} s")
+    with m2:
+        st.metric(label="Predicted Cloud Latency", value=f"{preds['predicted_cloud_time']:.4f} s")
+    with m3:
+        speedup = preds["predicted_edge_time"] - preds["predicted_cloud_time"]
+        st.metric(label="Predicted Offload Delta", value=f"{speedup:+.4f} s", delta="Cloud Speedup" if speedup > 0 else "Edge Faster")
+
+    values = [preds["predicted_edge_time"], preds["predicted_cloud_time"]]
+    fig = go.Figure(go.Bar(x=["Local Edge", "AWS Cloud"], y=values, marker_color=ctx.chart_pred,
+                           text=[f"{v:.4f} s" for v in values], textposition="outside", name="Predicted Latency"))
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", height=260, bargap=0.5,
+        margin=dict(l=15, r=15, t=25, b=25), font=dict(color=ctx.chart_text, family="Space Grotesk, sans-serif", size=11),
+        xaxis=dict(showgrid=False, linecolor=ctx.chart_grid),
+        yaxis=dict(showgrid=True, gridcolor=ctx.chart_grid, range=[0, max(values) * 1.35], ticksuffix=" s"))
+    st.plotly_chart(fig, use_container_width=True, width="stretch")
+
+
 def execute_workload(ctx, code_string, filename, dispatcher):
     """Schedule and run one script through the Dispatcher (fallback, circuit
     breaker, live RTT, history and the decision log all apply)."""
@@ -12,7 +57,12 @@ def execute_workload(ctx, code_string, filename, dispatcher):
     try:
         res = dispatcher.run(code_string)
     except Exception as ex:  # an edge failure is a real error; cloud errors fall back inside run()
-        st.error(f"Execution failed: {ex}")
+        # Dashboard-only deployments have no reachable worker: still show what the scheduler decided.
+        plan = dispatcher.scheduler.schedule(code_string)
+        if "error" in plan:
+            st.error(f"AST Parsing Failed for {filename}: {plan['error']}")
+        else:
+            show_prediction_only(ctx, plan, ex)
         return
 
     if "error" in res:
